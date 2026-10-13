@@ -1,2 +1,4 @@
 
 *.FCBak
+__pycache__/
+*.pyc
