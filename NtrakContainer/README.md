@@ -35,6 +35,20 @@ drop the `NtrakContainer` folder into the `Mod` directory yourself — it needs
 `Init.py`, `InitGui.py`, `package.json`, `ntrak_container/` and `resources/`
 to stay together.
 
+### Troubleshooting
+
+* **Workbench not in the list** — FreeCAD scans `Mod` at startup, so a full
+  restart is required after installing or updating. Check that
+  `Mod/NtrakContainer/InitGui.py` exists and that the folder matches the name
+  in `package.json`.
+* **Verify the install from a terminal** — start FreeCAD from a shell and look
+  for a line reading `During initialization the error ... occurred in
+  .../NtrakContainer/InitGui.py`; FreeCAD prints it when an add-on fails to
+  load. `make test` includes a regression test for the workbench registration.
+* **Console check** — `freecadcmd` should accept
+  `from ntrak_container import tasks` without errors; if it does not, the
+  add-on folder is not on the FreeCAD `Mod` path.
+
 ## Using the GUI
 
 **Ntrak Container → Generate container...** (shortcut `G` then `N`) opens a
