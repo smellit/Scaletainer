@@ -47,8 +47,10 @@ def corrugated_slab(rib: ScaledRib, plate: float, *, crest_towards: int = +1,
     """``count`` pitches of corrugation plus the backing plate.
 
     ``crest_towards=+1`` puts the crest at ``v = +height`` and the plate behind
-    it at ``v = -plate`` (side walls, roof, door).  ``-1`` mirrors the profile
-    so the crest is at ``v = -height`` and the plate above it (floor).
+    it at ``v = -plate`` (side walls, roof).  ``-1`` mirrors the profile so the
+    crest is at ``v = -height`` and the plate beyond it at ``v = +plate``
+    (floor, door).  Which way is "outwards" is decided by how the builder
+    orients ``v`` in 3D, not by the sign here.
 
     ``u`` runs along the corrugation from ``0`` to ``rib.pitch * count``.
     """
@@ -94,12 +96,15 @@ def floor(rib: ScaledRib, plate: float) -> list[tuple[float, float]]:
 
 
 def door(rib: ScaledRib, depth: float) -> list[tuple[float, float]]:
-    """Ribbed door end: outer plate plus ribs projecting into the interior.
+    """Ribbed door end: flat backing plate with the crests facing outwards.
 
-    ``depth`` is the total panel depth from outer face to rib crest, i.e. the
-    door frame width of the reference model.
+    ``depth`` is the total panel depth from rib crest to plate back, i.e. the
+    door frame width of the reference model.  ``crest_towards=-1`` matches the
+    other walls: the plate closes the box on the inside and the corrugation
+    bulges to the outside, so ``v`` runs from ``-height`` (crest plane) to
+    ``depth - height`` (plate back).
     """
-    return corrugated_slab(rib, depth - rib.height, crest_towards=+1)
+    return corrugated_slab(rib, depth - rib.height, crest_towards=-1)
 
 
 def chamfered_rect(width: float, height: float, chamfer: float) -> list[tuple[float, float]]:

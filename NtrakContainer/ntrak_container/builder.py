@@ -184,9 +184,11 @@ def build_door_side(geom: ScaledGeometry) -> Component:
 
     loop = profiles.door(rib, fw)
     y_start = fw + (geom.door_span - rib.span) / 2.0
-    # local v = +X, placed so the skin's outer face is at X = 0 and the rib
-    # crests reach inward to X = fw; the loop already holds every rib
-    rib_face = make_face([loop], (fw - rib.height, y_start, fw),
+    # local v = +X.  Placed at origin_x = rib.height so the crest plane (v =
+    # -height) lands on X = 0, the outer face, while the plate back (v =
+    # fw - height) reaches X = fw and meets the side walls flush -- the same
+    # relief direction as the side walls, roof and floor.
+    rib_face = make_face([loop], (rib.height, y_start, fw),
                          (0.0, 1.0, 0.0), (1.0, 0.0, 0.0))
     parts.append(extrude(rib_face, (0.0, 0.0, 1.0), geom.height - 2 * fw))
     return Component("DoorSide", Part.makeCompound(parts), (0.78, 0.78, 0.78),

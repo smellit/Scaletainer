@@ -57,6 +57,35 @@ class ReferenceMatchTest(unittest.TestCase):
                                      expected["size"]):
                     self.assertAlmostEqual(got, want, places=3)
 
+    def test_door_relief_faces_outwards(self):
+        """The door plate backs onto the walls; its crests bulge out (X = 0).
+
+        Mirroring this the wrong way buries the corrugation inside the
+        container, which is what an earlier revision did.
+        """
+        import Part
+
+        door = self.by_name["DoorSide"]
+        fw = self.geom.door_frame_width
+        bb = door.bounding_box
+        probe = 1e-4
+        outer = door.shape.common(
+            Part.makeBox(probe, bb.YLength + 2, bb.ZLength + 2,
+                         __import__("FreeCAD").Vector(-1, bb.YMin - 1, bb.ZMin - 1)
+                         + __import__("FreeCAD").Vector(0, 0, 0)))
+        # slice just inside the outer face (crest plane) and just inside the
+        # plate back; the plate side must hold more material
+        def area_at(x):
+            solid = door.shape.common(Part.makeBox(
+                probe, bb.YLength + 2, bb.ZLength + 2,
+                __import__("FreeCAD").Vector(x - probe / 2, bb.YMin - 1, bb.ZMin - 1)))
+            return solid.Volume / probe
+        crest_side = area_at(1e-4)
+        plate_side = area_at(fw - 1e-4)
+        self.assertGreater(plate_side, crest_side,
+                           f"plate side {plate_side:.3f} vs crest side {crest_side:.3f}")
+        self.assertAlmostEqual(plate_side, self.geom.width * self.geom.height, places=1)
+
     def test_shapes_are_valid_solids(self):
         for comp in self.components:
             with self.subTest(part=comp.name):
