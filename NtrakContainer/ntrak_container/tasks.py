@@ -19,6 +19,9 @@ INPUT_FIELDS = ("length", "width", "height", "frame_size", "door_frame_width",
 RIB_FIELDS = ("side_ribs", "top_ribs", "bottom_ribs", "door_ribs")
 #: mounting frame fields
 MOUNT_FIELDS = ("mount_frame_depth", "mount_frame_wall", "mount_frame_chamfer")
+#: far door hardware fields, also 1:1 lengths
+FAR_DOOR_FIELDS = ("far_door_plate", "far_door_rod_width", "far_door_gap",
+                   "far_door_corner")
 
 
 @dataclass
@@ -36,6 +39,8 @@ class Preview:
     mount_height: float
     ribs: dict
     notes: list[str]
+    #: far door end summary: band depth, plate, relief, hardware, rods, seam
+    far_door: dict | None = None
 
     def rows(self) -> list[tuple[str, str]]:
         """``(label, value)`` pairs, handy for a table widget."""
@@ -53,6 +58,14 @@ class Preview:
             out.append((f"{name} ribs",
                         f"{rib['count']} x {rib['pitch']:.4f} mm pitch, "
                         f"{rib['height']:.4f} mm deep"))
+        if self.far_door:
+            fd = self.far_door
+            out.append(("Far door band", f"{fd['band']:.4f} mm (flush at model length)"))
+            out.append(("Far door plate", f"{fd['plate']:.4f} mm backing"))
+            out.append(("Far door relief", f"{fd['relief']:.4f} mm raised detail"))
+            out.append(("Far door frame", f"{fd['frame']:.4f} mm stiles/rails"))
+            out.append(("Far door rods", f"{fd['rods_per_leaf']} per leaf, "
+                        f"{fd['rod']:.4f} mm wide, seam {fd['gap']:.4f} mm"))
         return out
 
 
@@ -63,7 +76,7 @@ def container_params(values: dict, unit: str = "mm") -> ContainerParams:
     reference (48 ft ISO) value, so a partial dict is fine.
     """
     kwargs = {}
-    for name in INPUT_FIELDS + MOUNT_FIELDS:
+    for name in INPUT_FIELDS + MOUNT_FIELDS + FAR_DOOR_FIELDS:
         if values.get(name) is not None:
             kwargs[name] = to_mm(float(values[name]), unit)
     for name in RIB_FIELDS:
@@ -97,6 +110,7 @@ def build_config(values: dict) -> BuildConfig:
         min_rib_pitch_mm=float(values.get("min_rib_pitch_mm") or 0.0),
         include_mount_frame=bool(values.get("include_mount_frame", True)),
         include_door_side=bool(values.get("include_door_side", True)),
+        include_far_door=bool(values.get("include_far_door", True)),
     )
 
 
@@ -108,12 +122,20 @@ def preview(values: dict, unit: str = "mm") -> Preview:
     ribs = {name: {"count": rib.count, "pitch": rib.pitch, "height": rib.height}
             for name, rib in (("side", geom.side), ("top", geom.top),
                               ("bottom", geom.bottom), ("door", geom.door))}
+    far_door = None
+    if cfg.include_far_door and geom.far_door_available > 0:
+        far_door = {"band": geom.far_door_available, "plate": geom.far_door_plate,
+                    "relief": geom.far_door_hardware, "rod": geom.far_door_rod,
+                    "gap": geom.far_door_gap, "corner": geom.far_door_corner,
+                    "frame": geom.far_door_stile,
+                    "rods_per_leaf": geom.far_door_rod_count}
     return Preview(
         scale=Scale(cfg.scale_divider),
         length=geom.length, width=geom.width, height=geom.height,
         inner_length=geom.inner_length, side_envelope=geom.side_envelope,
         side_plate=geom.side_plate, mount_span=geom.mount_span,
         mount_height=geom.mount_height, ribs=ribs, notes=list(geom.notes),
+        far_door=far_door,
     )
 
 

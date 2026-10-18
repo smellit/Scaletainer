@@ -30,10 +30,10 @@ REFERENCE = {
 }
 
 
-def build(divider=160.0, **cfg):
+def build(divider=160.0, *, include_far_door=False, **cfg):
     params = ContainerParams.reference()
     geom = derive(params, BuildConfig(scale_divider=divider, **cfg))
-    return geom, builder.build_components(geom)
+    return geom, builder.build_components(geom, include_far_door=include_far_door)
 
 
 class ReferenceMatchTest(unittest.TestCase):
@@ -136,9 +136,68 @@ class ScaleBehaviourTest(unittest.TestCase):
     def test_toggles_drop_parts(self):
         geom = derive(ContainerParams.reference(),
                       BuildConfig(include_mount_frame=False, include_door_side=False))
-        names = [c.name for c in builder.build_components(geom, include_mount_frame=False,
-                                                          include_door=False)]
+        names = [c.name for c in builder.build_components(
+            geom, include_mount_frame=False, include_door=False,
+            include_far_door=False)]
         self.assertEqual(names, ["SideWallRight", "SideWallLeft", "Roof", "Floor"])
+
+
+class FarDoorTest(unittest.TestCase):
+    """The realistic double-door end must stay inside the overall length."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.geom, cls.components = build(include_far_door=True)
+        cls.by_name = {c.name: c for c in cls.components}
+
+    def test_far_door_present(self):
+        self.assertIn("FarDoor", self.by_name)
+
+    def test_assembly_never_exceeds_nominal_length(self):
+        """The hard requirement: XMax lands exactly on the 1:1 length."""
+        bb = builder.assembly_shape(self.components).BoundBox
+        self.assertLessEqual(bb.XMax, self.geom.length + 1e-6)
+        self.assertAlmostEqual(bb.XMax, self.geom.length, places=6)
+
+    def test_far_door_flush_at_both_ends(self):
+        door = self.by_name["FarDoor"].bounding_box
+        self.assertAlmostEqual(door.XMin, self.geom.far_door_x0, places=6)
+        self.assertAlmostEqual(door.XMax, self.geom.far_door_x1, places=6)
+        self.assertAlmostEqual(self.geom.far_door_x1, self.geom.length, places=6)
+
+    def test_far_door_is_one_valid_solid(self):
+        shape = self.by_name["FarDoor"].shape
+        self.assertTrue(shape.isValid())
+        self.assertEqual(len(shape.Solids), 1)
+
+    def test_far_door_spans_full_cross_section(self):
+        bb = self.by_name["FarDoor"].bounding_box
+        self.assertAlmostEqual(bb.YLength, self.geom.width, places=6)
+        self.assertAlmostEqual(bb.ZLength, self.geom.height, places=6)
+
+    def test_layers_sum_to_band(self):
+        self.assertAlmostEqual(self.geom.far_door_plate + self.geom.far_door_hardware,
+                               self.geom.far_door_available, places=9)
+
+    def test_backing_plate_is_printable(self):
+        # a solid base at least 0.2 mm at the smallest common scale
+        self.assertGreaterEqual(self.geom.far_door_plate, 0.2)
+
+    def test_toggle_removes_far_door(self):
+        _, with_door = build(include_far_door=True)
+        _, without = build(include_far_door=False)
+        self.assertEqual(len(with_door), len(without) + 1)
+        self.assertNotIn("FarDoor", {c.name for c in without})
+
+    def test_far_door_survives_scaling(self):
+        """1:87 and 1:160 both keep the door flush at the nominal length."""
+        for divider in (87.0, 160.0, 225.0):
+            geom, parts = build(divider, include_far_door=True)
+            bb = builder.assembly_shape(parts).BoundBox
+            with self.subTest(divider=divider):
+                self.assertLessEqual(bb.XMax, geom.length + 1e-6)
+                door = next(c for c in parts if c.name == "FarDoor")
+                self.assertTrue(door.shape.isValid())
 
 
 class DocumentTest(unittest.TestCase):

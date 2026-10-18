@@ -95,12 +95,34 @@ class ContainerParams:
     #: number of mounting ribs spread over the corrugated span
     mount_frame_count: int = 3
 
+    # --- far (double) door end, 1:1 mm ---------------------------------
+    #: solid backing plate of the door leaves.  The leaves live in the band
+    #: between the corrugated shell and the nominal container end, so the sum of
+    #: plate, corrugation relief and hardware is fixed; a thicker plate means a
+    #: stronger, more printable base and a shallower corrugation.
+    far_door_plate: float = 48.0
+    #: diameter of the vertical locking rods (square bars for printability)
+    far_door_rod_width: float = 45.0
+    #: width of the centre seam between the two door leaves
+    far_door_gap: float = 34.0
+    #: size of the corner castings / hinge and handle blocks
+    far_door_corner: float = 60.0
+    #: width of the raised door frame (stiles and rails) around each leaf
+    far_door_stile: float = 70.0
+    #: vertical locking rods per door leaf (2 on a real ISO box)
+    far_door_rod_count: int = 2
+
     def validate(self) -> None:
         for attr in ("length", "width", "height", "frame_size", "door_frame_width",
                      "top_skin", "bottom_skin", "mount_frame_depth",
-                     "mount_frame_wall", "mount_frame_chamfer"):
+                     "mount_frame_wall", "mount_frame_chamfer",
+                     "far_door_plate", "far_door_rod_width", "far_door_gap",
+                     "far_door_corner", "far_door_stile"):
             if getattr(self, attr) <= 0:
                 raise ValueError(f"{attr} must be greater than zero")
+        if int(self.far_door_rod_count) != self.far_door_rod_count \
+                or self.far_door_rod_count < 1:
+            raise ValueError("far_door_rod_count must be a whole number >= 1")
         if int(self.mount_frame_count) != self.mount_frame_count or self.mount_frame_count < 1:
             raise ValueError("mount_frame_count must be a whole number >= 1")
         if 2 * self.frame_size >= min(self.length, self.width):
@@ -167,6 +189,8 @@ class BuildConfig:
     include_mount_frame: bool = True
     #: build the ribbed door end
     include_door_side: bool = True
+    #: build the realistic double-door end on the far side
+    include_far_door: bool = True
 
     def replaced(self, **changes) -> "BuildConfig":
         return replace(self, **changes)
@@ -215,6 +239,21 @@ class ScaledGeometry:
     mount_frame_wall: float
     mount_frame_chamfer: float
     mount_frame_count: int
+    #: far door end: backing plate of the leaves
+    far_door_plate: float = 0.0
+    #: far door end: width of the vertical locking rods, and how far they
+    #: stand proud of the corrugation
+    far_door_rod: float = 0.0
+    #: far door end: centre seam between the two leaves
+    far_door_gap: float = 0.0
+    #: far door end: size of hinge, handle and corner-casting blocks
+    far_door_corner: float = 0.0
+    #: far door end: width of the raised frame around each leaf
+    far_door_stile: float = 0.0
+    #: far door end: vertical locking rods per leaf
+    far_door_rod_count: int = 2
+    #: far door end: depth of the raised relief (band minus backing plate)
+    far_door_hardware: float = 0.0
     #: human readable log of every floor / rib-count adjustment
     notes: list[str] = field(default_factory=list)
 
@@ -250,6 +289,19 @@ class ScaledGeometry:
         return self.inner_length + self.door_frame_width
 
     @property
+    def far_door_available(self) -> float:
+        """Length left between the corrugated end and the nominal container end.
+
+        The model currently stops at ``overall_length`` (the corrugated walls
+        plus the near door).  A real container's door end is flush with the
+        corner fittings at the full 1:1 ``length``, so this is the depth the far
+        door may use: ``length - overall_length``, i.e. ``2 * frame_size -
+        door_frame_width`` in scale space.  Building the far door inside exactly
+        this band guarantees the model never exceeds the overall length.
+        """
+        return max(0.0, self.length - self.overall_length)
+
+    @property
     def mount_span(self) -> float:
         """Width a mounting rib spans between the two side walls."""
         return self.width - 2 * self.side_envelope
@@ -270,6 +322,32 @@ class ScaledGeometry:
             return [0.0]
         step = usable / (n - 1)
         return [i * step for i in range(n)]
+
+    # --- far (double) door end -----------------------------------------
+    @property
+    def far_door_x0(self) -> float:
+        """X where the far door starts: the end of the corrugated shell."""
+        return self.overall_length
+
+    @property
+    def far_door_x1(self) -> float:
+        """X of the far door's outer face -- exactly the nominal length.
+
+        Keeping the outer face here is what stops the door end from ever
+        exceeding the overall container length.
+        """
+        return self.length
+
+    @property
+    def far_door_leaf_width(self) -> float:
+        """Width of one door leaf between the centre seam and a corner."""
+        usable = self.width - self.far_door_gap
+        return usable / 2.0
+
+    @property
+    def far_door_centre(self) -> float:
+        """Y of the centre seam between the two leaves."""
+        return self.width / 2.0
 
 
 def _floor(value: float, limit: float, notes: list[str], what: str) -> float:
@@ -373,6 +451,28 @@ def derive(params: ContainerParams, cfg: BuildConfig) -> ScaledGeometry:
     bottom = _resolve_rib(params.bottom_ribs, corrugated_span, d, cfg, notes, "bottom ribs")
     door = _resolve_rib(params.door_ribs, door_span, d, cfg, notes, "door ribs")
 
+    # --- far (double) door end -----------------------------------------
+    # The leaves live in the fixed band between the corrugated shell (X =
+    # overall_length) and the nominal container end (X = length), so the outer
+    # face sits exactly at ``length`` and can never exceed the overall length.
+    # The band is a solid backing plate plus a layer of raised relief; the relief
+    # depth is simply ``band - plate``, so the plate is capped to leave room for
+    # the door detail.  The hardware sizes are planar (in the door face).
+    band = max(0.0, params.length / d - (params.length - 2 * params.frame_size
+                                         + params.door_frame_width) / d)
+    rod = _floor(params.far_door_rod_width / d, cfg.min_feature_mm, notes,
+                 "far door rod width")
+    corner = _floor(params.far_door_corner / d, cfg.min_feature_mm, notes,
+                    "far door corner size")
+    gap = _floor(params.far_door_gap / d, cfg.min_feature_mm, notes,
+                 "far door centre seam")
+    stile = _floor(params.far_door_stile / d, cfg.min_feature_mm, notes,
+                   "far door frame stile")
+    plate = _floor(params.far_door_plate / d, cfg.min_feature_mm, notes,
+                   "far door plate")
+    if band > 0:
+        plate = min(plate, band * 0.6)          # keep at least 40% for the relief
+
     geom = ScaledGeometry(
         scale_divider=d,
         length=params.length / d,
@@ -390,6 +490,13 @@ def derive(params: ContainerParams, cfg: BuildConfig) -> ScaledGeometry:
         mount_frame_chamfer=_floor(params.mount_frame_chamfer / d, cfg.min_feature_mm,
                                    notes, "mount frame chamfer"),
         mount_frame_count=int(params.mount_frame_count),
+        far_door_plate=plate,
+        far_door_rod=rod,
+        far_door_gap=gap,
+        far_door_corner=corner,
+        far_door_stile=stile,
+        far_door_rod_count=int(params.far_door_rod_count),
+        far_door_hardware=band - plate,
         notes=notes,
     )
     _check_fit(geom, notes)

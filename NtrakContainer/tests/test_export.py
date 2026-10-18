@@ -57,7 +57,9 @@ class ExportTest(unittest.TestCase):
         self.assertGreater(mesh.CountFacets, 1000)
         bb = mesh.BoundBox
         geom = derive(self.params, self.cfg)
-        self.assertAlmostEqual(bb.XLength, geom.overall_length, places=2)
+        # the far door extends the model to the full nominal length
+        self.assertAlmostEqual(bb.XLength, geom.length, places=2)
+        self.assertLessEqual(bb.XMax, geom.length + 1e-3)
         self.assertAlmostEqual(bb.YLength, geom.width, places=2)
         self.assertAlmostEqual(bb.ZLength, geom.height, places=2)
 
@@ -69,7 +71,7 @@ class ExportTest(unittest.TestCase):
             self.assertNotIn("Spreadsheet::Sheet", types,
                              "generated document must not contain spreadsheets")
             features = [o for o in doc.Objects if o.TypeId == "Part::Feature"]
-            self.assertEqual(len(features), 6)
+            self.assertEqual(len(features), 7)
             total = sum(o.Shape.Volume for o in features)
             self.assertGreater(total, 0)
         finally:
@@ -85,7 +87,7 @@ class ExportTest(unittest.TestCase):
         self.assertAlmostEqual(payload["derived_scale_space"]["width"],
                                2590.8 / 87.0, places=9)
         self.assertIn("components", payload)
-        self.assertEqual(len(payload["components"]), 6)
+        self.assertEqual(len(payload["components"]), 7)
 
     def test_unknown_format_rejected(self):
         with self.assertRaises(ValueError):

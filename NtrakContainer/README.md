@@ -60,8 +60,9 @@ panel with five tabs:
    door end.
 2. **Dimensions (1:1)** — the real full-size measurements: overall length,
    width, height, end-frame/corner-fitting width, door border width, roof and
-   floor plate thickness, and the mounting rib dimensions. Changing the input
-   unit re-expresses these fields without changing the model.
+   floor plate thickness, the mounting rib dimensions, and the far-door
+   hardware (backing plate, locking rod width, centre seam, hinge/handle size).
+   Changing the input unit re-expresses these fields without changing the model.
 3. **Corrugation** — for each of the four rib sets (side wall, roof, floor,
    door end): rib count, slope width, relief depth, and the share of the flat
    span that becomes the crest.
@@ -113,8 +114,31 @@ For scale `1:87` you get `Ntrak-168x30x33-1-87.*`:
 | `...-parts/` | one STL/3MF/STEP per component for multi-part prints |
 
 Components: `SideWallRight`, `SideWallLeft`, `Roof`, `Floor`, `MountFrame`
-(the ribs that hold the container), `DoorSide`. The model sits in the first
-octant with the floor ribs at `Z = 0`, so it can be sliced without moving it.
+(the ribs that hold the container), `DoorSide` (the ribbed end) and `FarDoor`
+(the realistic double-door end). The model sits in the first octant with the
+floor ribs at `Z = 0`, so it can be sliced without moving it.
+
+## The far door end
+
+The template only modelled one (ribbed) end, leaving the other side open. The
+`FarDoor` part closes it with a realistic ISO box door: two leaves meeting at a
+recessed centre seam, each framed by raised stiles and rails, with two vertical
+locking rods and cam-keeper blocks per leaf, hinge blocks down the outer edges
+and corner castings at the four corners.
+
+Two design rules make it safe:
+
+* **It never exceeds the overall length.** The door fills exactly the band
+  between the corrugated shell (`overall_length`) and the nominal 1:1 `length`,
+  so its outer face is flush with the container's real end and the model's
+  bounding box is always `length` — never more.
+* **It is raised relief on a solid backing plate**, not thin protrusions, so it
+  survives a fine nozzle. At 1:160 the backing plate is ~0.30 mm and the raised
+  detail ~0.58 mm. The `min_feature_mm` safety net raises anything too thin for
+  a coarser nozzle; the door detail then simply reads as a flat panel.
+
+Toggle it off with **Build realistic double-door end** on the Scale & options
+tab, or `include_far_door=False` in the console.
 
 The reference model's `FrameMiddle` / `FrameBack` are PartDesign clones of
 `FrameFront`; here the three mounting ribs are one compound part, which is

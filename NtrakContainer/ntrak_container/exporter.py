@@ -106,6 +106,7 @@ def write_params(path: str, params: ContainerParams, cfg: BuildConfig,
             "min_rib_pitch_mm": cfg.min_rib_pitch_mm,
             "include_mount_frame": cfg.include_mount_frame,
             "include_door_side": cfg.include_door_side,
+            "include_far_door": cfg.include_far_door,
         },
         "derived_scale_space": {
             "length": geom.length,
@@ -148,6 +149,7 @@ def build_document(params: ContainerParams, cfg: BuildConfig, *,
         geom,
         include_mount_frame=cfg.include_mount_frame,
         include_door=cfg.include_door_side,
+        include_far_door=cfg.include_far_door,
     )
     name = group_label or f"Ntrak container 1-{cfg.scale_divider:g}"
     doc = App.newDocument(safe_name(name))

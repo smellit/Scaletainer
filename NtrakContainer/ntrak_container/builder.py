@@ -196,6 +196,81 @@ def build_door_side(geom: ScaledGeometry) -> Component:
                       "relief": rib.height})
 
 
+def build_far_door(geom: ScaledGeometry) -> Component:
+    """Realistic double-door end on the open far side of the container.
+
+    The whole assembly lives in the band ``overall_length .. length`` -- the
+    space between the corrugated shell and the nominal container end -- so its
+    outer face is flush at ``length`` and the model never exceeds the overall
+    length.  The band is a flat backing panel plus a single layer of raised
+    relief (every feature's top face is exactly ``x1``), which is how a real ISO
+    box door reads at a glance and, being relief on a solid panel rather than
+    thin protrusions, survives a fine nozzle at 1:160.
+
+    Two leaves meet at a centre seam.  Each leaf has a raised rectangular frame
+    (stiles and rails), two vertical locking rods with cam-keeper blocks top and
+    bottom, and the outer edges carry hinge blocks; the four container corners
+    get corner castings.
+    """
+    x0, x1 = geom.far_door_x0, geom.far_door_x1
+    plate = geom.far_door_plate
+    gap = geom.far_door_gap
+    corner = geom.far_door_corner
+    rod = geom.far_door_rod
+    stile = geom.far_door_stile
+    width, height = geom.width, geom.height
+    centre = geom.far_door_centre
+    raised = x1 - (x0 + plate)          # relief height of all raised detail
+    base = x0 + plate                    # panel outer face / relief floor
+    shapes: list[Part.Shape] = []
+
+    def block(dx: float, y: float, dy: float, z: float, dz: float) -> Part.Shape:
+        """Raised box whose top face is flush at ``x1``."""
+        return Part.makeBox(dx, dy, dz, Vec(x1 - dx, y, z))
+
+    # --- flat backing panel closing the open shell end ---------------------
+    shapes.append(Part.makeBox(plate, width, height, Vec(x0, 0.0, 0.0)))
+    if raised <= 0:
+        return Component("FarDoor", shapes[0], (0.74, 0.74, 0.76),
+                         {"leaves": 2, "band_depth": x1 - x0, "plate": plate})
+
+    # --- per-leaf raised frame: two stiles + top and bottom rails ----------
+    leaf_edges = [(corner, centre - gap / 2.0), (centre + gap / 2.0, width - corner)]
+    for lo, hi in leaf_edges:
+        shapes.append(block(raised, lo, stile, 0.0, height))              # left stile
+        shapes.append(block(raised, hi - stile, stile, 0.0, height))      # right stile
+        shapes.append(block(raised, lo, hi - lo, 0.0, stile))             # bottom rail
+        shapes.append(block(raised, lo, hi - lo, height - stile, stile))  # top rail
+
+    # --- vertical locking rods: ``rod_count`` per leaf, with cam keepers ----
+    n = max(1, int(geom.far_door_rod_count))
+    for lo, hi in leaf_edges:
+        inner, outer = lo + stile, hi - stile
+        for i in range(n):
+            y = inner + (outer - inner) * (i + 1) / (n + 1)
+            shapes.append(block(raised, y - rod / 2.0, rod,
+                               corner, height - 2 * corner))
+            for z in (corner + rod, height - corner - rod):
+                shapes.append(block(raised, y - rod * 1.5, rod * 3.0,
+                                    z - rod * 1.5, rod * 3.0))
+
+    # --- hinge blocks down the two outer edges -----------------------------
+    for y in (0.0, width - corner):
+        for z in (height * 0.2, height * 0.5, height * 0.8):
+            shapes.append(block(raised, y, corner, z - corner / 2.0, corner))
+
+    # --- corner castings at the four outer corners -------------------------
+    for yy in (0.0, width - corner):
+        for zz in (0.0, height - corner):
+            shapes.append(block(raised, yy, corner, zz, corner))
+
+    solid = shapes[0].multiFuse(shapes[1:])
+    return Component("FarDoor", solid, (0.74, 0.74, 0.76),
+                     {"leaves": 2, "band_depth": x1 - x0, "plate": plate,
+                      "relief": raised, "frame": stile, "rod": rod,
+                      "rods_per_leaf": n, "corner": corner})
+
+
 def build_end_frame(geom: ScaledGeometry) -> Component:
     """Corner posts at both ends, as a separate support frame part."""
     post = geom.side_envelope
@@ -214,6 +289,7 @@ def build_end_frame(geom: ScaledGeometry) -> Component:
 
 def build_components(geom: ScaledGeometry, *, include_mount_frame: bool = True,
                      include_door: bool = True,
+                     include_far_door: bool = True,
                      include_end_frame: bool = False) -> list[Component]:
     """Assemble every requested component of the container."""
     parts = [
@@ -226,6 +302,8 @@ def build_components(geom: ScaledGeometry, *, include_mount_frame: bool = True,
         parts.append(build_mount_frame(geom))
     if include_door:
         parts.append(build_door_side(geom))
+    if include_far_door and geom.far_door_available > 0:
+        parts.append(build_far_door(geom))
     if include_end_frame:
         parts.append(build_end_frame(geom))
     return parts

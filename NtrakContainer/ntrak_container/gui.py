@@ -28,6 +28,10 @@ DIMENSION_FIELDS = (
     ("mount_frame_depth", "Mount rib depth"),
     ("mount_frame_wall", "Mount rib wall thickness"),
     ("mount_frame_chamfer", "Mount rib corner chamfer"),
+    ("far_door_plate", "Far door backing plate"),
+    ("far_door_rod_width", "Far door locking rod width"),
+    ("far_door_gap", "Far door centre seam width"),
+    ("far_door_corner", "Far door hinge / handle / casting size"),
 )
 #: rib groups: (attribute, group title)
 RIB_GROUPS = (
@@ -127,6 +131,12 @@ class ContainerPanel(QtWidgets.QWidget):
         self.inc_door.setChecked(True)
         self.inc_door.toggled.connect(lambda *_: self._refresh_preview())
         form.addRow("", self.inc_door)
+
+        self.inc_far_door = QtWidgets.QCheckBox("Build realistic double-door end (far side)")
+        self.inc_far_door.setChecked(True)
+        self.inc_far_door.setToolTip("Stays within the overall container length")
+        self.inc_far_door.toggled.connect(lambda *_: self._refresh_preview())
+        form.addRow("", self.inc_far_door)
 
         self.mount_count = _int_box(self.reference.mount_frame_count, high=50)
         self.mount_count.valueChanged.connect(lambda *_: self._refresh_preview())
@@ -262,6 +272,7 @@ class ContainerPanel(QtWidgets.QWidget):
         values["min_rib_pitch_mm"] = float(self.min_pitch.value())
         values["include_mount_frame"] = self.inc_mount.isChecked()
         values["include_door_side"] = self.inc_door.isChecked()
+        values["include_far_door"] = self.inc_far_door.isChecked()
         return values
 
     def selected_formats(self) -> tuple[str, ...]:
@@ -326,6 +337,7 @@ class ContainerPanel(QtWidgets.QWidget):
         self.min_pitch.setValue(0.0)
         self.inc_mount.setChecked(True)
         self.inc_door.setChecked(True)
+        self.inc_far_door.setChecked(True)
         self._refresh_preview()
 
     def _browse(self) -> None:
