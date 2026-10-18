@@ -10,7 +10,9 @@ body, which raised ``NameError`` only in a real GUI session.
 
 import builtins
 import os
+import shutil
 import sys
+import tempfile
 import types
 import unittest
 
@@ -98,20 +100,33 @@ class WorkbenchInitTest(unittest.TestCase):
 
         The old code did ``abspath(__file__)`` blindly, which pointed the icon
         at an unrelated folder when the process ran from elsewhere.
+
+        A throw-away "installation" (symlinks to the real package and resources)
+        is used instead of the user's Mod folder: inside the Flatpak sandbox
+        ``os.chdir`` into ``~/.var/...`` silently does not relocate the working
+        directory, so a test that depends on it cannot be trusted.
         """
-        installed_dir = os.path.dirname(INSTALLED)
-        # FreeCAD hands over a path relative to its own working directory.
-        target = os.path.relpath(INSTALLED, installed_dir)
-        saved = os.getcwd()
-        try:
-            os.chdir(installed_dir)
-            exec_freecad_style(INIT_GUI, self.gui, target)
-        finally:
-            os.chdir(saved)
-        icon = self.gui.added[0].Icon
-        self.assertEqual(icon, os.path.join(installed_dir, "resources",
-                                            "container.svg"), icon)
-        self.assertTrue(os.path.isfile(icon), icon)
+        with tempfile.TemporaryDirectory() as installed_dir:
+            for name in ("ntrak_container", "resources"):
+                os.symlink(os.path.join(ROOT, name),
+                           os.path.join(installed_dir, name))
+            shutil.copyfile(INIT_GUI, os.path.join(installed_dir, "InitGui.py"))
+            # FreeCAD hands over a path relative to its own working directory.
+            target = os.path.relpath(os.path.join(installed_dir, "InitGui.py"),
+                                     installed_dir)
+            saved = os.getcwd()
+            try:
+                os.chdir(installed_dir)
+                self.assertEqual(os.getcwd(), installed_dir,
+                                 "chdir did not take effect")
+                exec_freecad_style(os.path.join(installed_dir, "InitGui.py"),
+                                   self.gui, target)
+            finally:
+                os.chdir(saved)
+            icon = self.gui.added[0].Icon
+            self.assertEqual(icon, os.path.join(installed_dir, "resources",
+                                                "container.svg"), icon)
+            self.assertTrue(os.path.isfile(icon), icon)
 
     def test_icon_exists_in_repository(self):
         self.assertTrue(os.path.isfile(os.path.join(ROOT, "resources",

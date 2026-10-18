@@ -109,6 +109,53 @@ class PanelTest(unittest.TestCase):
         self.assertAlmostEqual(self.panel._fields["height"].value(), 2895.6, places=3)
         self.assertEqual(self.panel._rib_fields["side_ribs"]["count"].value(), 24)
 
+    def test_dimension_fields_show_whole_numbers_without_buttons(self):
+        box = self.panel._fields["length"]
+        # no up/down arrows
+        self.assertEqual(box.buttonSymbols(),
+                         QtWidgets.QAbstractSpinBox.NoButtons)
+        # reference length is 14630.4 mm but only the integer is displayed
+        self.assertAlmostEqual(box.value(), 14630.4, places=6)
+        self.assertEqual(box.text().split()[0], "14630")
+
+    def test_size_selection_fills_dimensions_exactly(self):
+        index = self.panel.size_combo.findText("20 ft dry (ISO 1AA)")
+        self.assertGreater(index, 0)
+        self.panel.size_combo.setCurrentIndex(index)
+        self.assertAlmostEqual(self.panel._fields["length"].value(), 6058.0, places=6)
+        self.assertAlmostEqual(self.panel._fields["width"].value(), 2438.0, places=6)
+        self.assertAlmostEqual(self.panel._fields["height"].value(), 2591.0, places=6)
+
+    def test_reference_size_selected_by_default(self):
+        self.assertEqual(self.panel.size_combo.currentText(),
+                         "48 ft x 8.5 x 9.5 ft (reference)")
+
+    def test_manual_dimension_edit_drops_size_selection(self):
+        index = self.panel.size_combo.findText("20 ft dry (ISO 1AA)")
+        self.panel.size_combo.setCurrentIndex(index)
+        self.panel._fields["length"].setValue(7000.0)
+        self.assertEqual(self.panel.size_combo.currentIndex(), 0,
+                         "manual edit must revert to -- custom --")
+        self.assertAlmostEqual(self.panel._fields["width"].value(), 2438.0,
+                               places=6, msg="only the edited field should change")
+
+    def test_size_selection_does_not_revert_itself(self):
+        """Programmatic fills must not look like a manual edit."""
+        index = self.panel.size_combo.findText("40 ft high cube (1BB)")
+        self.panel.size_combo.setCurrentIndex(index)
+        self.assertEqual(self.panel.size_combo.currentIndex(), index)
+
+    def test_unit_change_keeps_size_selection(self):
+        index = self.panel.size_combo.findText("20 ft dry (ISO 1AA)")
+        self.panel.size_combo.setCurrentIndex(index)
+        self.panel.unit_combo.setCurrentIndex(
+            self.panel.unit_combo.findData("ft"))
+        self.assertEqual(self.panel.size_combo.currentIndex(), index)
+        self.assertAlmostEqual(self.panel._fields["length"].value(),
+                               6058.0 / 304.8, places=4)
+        self.panel.unit_combo.setCurrentIndex(0)
+        self.assertAlmostEqual(self.panel._fields["length"].value(), 6058.0, places=4)
+
 
 @unittest.skipUnless(HAS_QT, "PySide not available")
 class CommandTest(unittest.TestCase):

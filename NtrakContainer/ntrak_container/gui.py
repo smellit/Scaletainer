@@ -41,6 +41,49 @@ RIB_GROUPS = (
     ("door_ribs", "Door end ribs"),
 )
 
+#: Common standard container sizes, in 1:1 millimetres:
+#: (label, length, width, height).  ISO nominal dimensions plus the reference
+#: model's 48 ft box.  Selecting one fills the overall dimension fields.
+CONTAINER_SIZES = (
+    ("20 ft dry (ISO 1AA)", 6058.0, 2438.0, 2591.0),
+    ("20 ft high cube", 6058.0, 2438.0, 2896.0),
+    ("20 ft reefer", 6058.0, 2438.0, 2591.0),
+    ("40 ft dry (ISO 1BB)", 12192.0, 2438.0, 2591.0),
+    ("40 ft high cube (1BB)", 12192.0, 2438.0, 2896.0),
+    ("45 ft high cube (1CC)", 13716.0, 2438.0, 2896.0),
+    ("48 ft x 8.5 x 9.5 ft (reference)", 14630.4, 2590.8, 2895.6),
+    ("53 ft domestic", 16154.0, 2600.0, 2896.0),
+)
+
+
+class _IntBox(QtWidgets.QDoubleSpinBox):
+    """Spin box that shows whole units (no decimals) and has no arrows.
+
+    The internal value stays exact -- selecting the reference size keeps
+    14630.4 mm -- but the field only ever displays a rounded integer with the
+    unit suffix, and the up/down buttons are removed as requested.
+    """
+
+    def __init__(self, value: float, unit: str, low: float = 0.0001):
+        super().__init__()
+        # High internal precision: the spin box clamps its stored value to
+        # ``decimals`` places, so a mm<->ft round trip would otherwise drift.
+        # The display is overridden below to whole numbers regardless.
+        self.setDecimals(6)
+        self.setRange(low, 1_000_000.0)
+        self.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
+        self.setSuffix(f" {unit}")
+        self.setValue(value)
+
+    def textFromValue(self, value: float) -> str:
+        return f"{value:.0f}"
+
+    def valueFromText(self, text: str) -> float:
+        try:
+            return float(text)
+        except ValueError:
+            return self.value()
+
 
 def _float_box(value: float, unit: str, low: float = 0.0001) -> QtWidgets.QDoubleSpinBox:
     box = QtWidgets.QDoubleSpinBox()
@@ -66,6 +109,7 @@ class ContainerPanel(QtWidgets.QWidget):
         super().__init__(parent)
         self.reference = ContainerParams.reference()
         self._unit = "mm"
+        self._loading = False            # guards against size/combo feedback loops
         self._fields: dict[str, QtWidgets.QDoubleSpinBox] = {}
         self._rib_fields: dict[str, dict[str, QtWidgets.QWidget]] = {}
         self.setWindowTitle("Ntrak transport container")
@@ -153,16 +197,48 @@ class ContainerPanel(QtWidgets.QWidget):
     def _dimensions_tab(self) -> QtWidgets.QWidget:
         page = QtWidgets.QWidget()
         form = QtWidgets.QFormLayout(page)
+
+        self.size_combo = QtWidgets.QComboBox()
+        self.size_combo.addItem("-- custom / enter manually --")
+        for label, length, width, height in CONTAINER_SIZES:
+            self.size_combo.addItem(label, (length, width, height))
+        self.size_combo.currentIndexChanged.connect(self._apply_container_size)
+        form.addRow("Standard size", self.size_combo)
+
         for name, label in DIMENSION_FIELDS:
-            box = _float_box(from_mm(getattr(self.reference, name), self._unit),
-                             self._unit)
-            box.valueChanged.connect(lambda *_: self._refresh_preview())
+            box = _IntBox(from_mm(getattr(self.reference, name), self._unit),
+                          self._unit)
+            box.valueChanged.connect(lambda *_, n=name: self._dimension_edited(n))
             self._fields[name] = box
             form.addRow(label, box)
         reset = QtWidgets.QPushButton("Restore 48 ft ISO defaults")
         reset.clicked.connect(self._reset_dimensions)
         form.addRow(reset)
         return page
+
+    def _dimension_edited(self, name: str) -> None:
+        """A manual change to length/width/height drops the standard-size pick."""
+        if not self._loading and name in ("length", "width", "height"):
+            self._loading = True
+            self.size_combo.setCurrentIndex(0)   # "-- custom --"
+            self._loading = False
+        self._refresh_preview()
+
+    def _apply_container_size(self, index: int) -> None:
+        """Fill length/width/height from the selected standard container size."""
+        if self._loading:
+            return
+        data = self.size_combo.itemData(index)
+        if not data:
+            return                       # the "-- custom --" row
+        length, width, height = data
+        unit = self._unit
+        self._loading = True
+        self._fields["length"].setValue(from_mm(length, unit))
+        self._fields["width"].setValue(from_mm(width, unit))
+        self._fields["height"].setValue(from_mm(height, unit))
+        self._loading = False
+        self._refresh_preview()
 
     def _ribs_tab(self) -> QtWidgets.QWidget:
         page = QtWidgets.QWidget()
@@ -286,6 +362,7 @@ class ContainerPanel(QtWidgets.QWidget):
         """Re-express every 1:1 field in the new unit, keeping the model size."""
         old, new = self._unit, str(self.unit_combo.currentData())
         self._unit = new
+        self._loading = True             # programmatic change: keep size selected
         for box in self._fields.values():
             box.setSuffix(f" {new}")
             box.setValue(from_mm(to_mm(box.value(), old), new))
@@ -294,6 +371,7 @@ class ContainerPanel(QtWidgets.QWidget):
                 box = fields[key]
                 box.setSuffix(f" {new}")
                 box.setValue(from_mm(to_mm(box.value(), old), new))
+        self._loading = False
         self._refresh_preview()
 
     def _custom_scale_applied(self) -> None:
@@ -313,8 +391,17 @@ class ContainerPanel(QtWidgets.QWidget):
             self.custom_scale.clear()
         self._refresh_preview()
 
+    def _size_index_for(self, length: float, width: float, height: float) -> int:
+        """Combo index of the standard size matching these 1:1 lengths, or 0."""
+        for i in range(self.size_combo.count()):
+            data = self.size_combo.itemData(i)
+            if data and all(abs(a - b) < 0.5 for a, b in zip(data, (length, width, height))):
+                return i
+        return 0
+
     def _reset_dimensions(self) -> None:
         unit = self._unit
+        self._loading = True
         for name, box in self._fields.items():
             box.setValue(from_mm(getattr(self.reference, name), unit))
         for name, fields in self._rib_fields.items():
@@ -324,6 +411,10 @@ class ContainerPanel(QtWidgets.QWidget):
             fields["height"].setValue(from_mm(pattern.height, unit))
             fields["ratio"].setValue(pattern.ratio)
         self.mount_count.setValue(self.reference.mount_frame_count)
+        self._loading = False
+        # reflect the restored size in the dropdown when it is a known standard
+        self.size_combo.setCurrentIndex(self._size_index_for(
+            self.reference.length, self.reference.width, self.reference.height))
         self._refresh_preview()
 
     def restore_defaults(self) -> None:

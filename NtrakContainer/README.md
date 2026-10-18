@@ -58,11 +58,22 @@ panel with five tabs:
    (preset list or a free-text `1:87`, `1/120`, `220`), the two printability
    safety nets described below, and whether to build the mounting frame and the
    door end.
-2. **Dimensions (1:1)** — the real full-size measurements: overall length,
-   width, height, end-frame/corner-fitting width, door border width, roof and
-   floor plate thickness, the mounting rib dimensions, and the far-door
-   hardware (backing plate, locking rod width, centre seam, hinge/handle size).
-   Changing the input unit re-expresses these fields without changing the model.
+2. **Dimensions (1:1)** — a *Standard size* picker with the common ISO boxes
+   (20 ft dry / high cube / reefer, 40 ft dry / high cube, 45 ft high cube, the
+   48 ft reference container and a 53 ft domestic) plus the real full-size
+   measurements: overall length, width, height, end-frame/corner-fitting width,
+   door border width, roof and floor plate thickness, the mounting rib
+   dimensions, and the far-door hardware (backing plate, locking rod width,
+   centre seam, hinge/handle size).
+   Choosing a standard size fills the length, width and height; editing any of
+   those three by hand switches the picker back to `-- custom --`, while the
+   other fields keep their values. Changing the input unit re-expresses these
+   fields — and keeps the size selection — without changing the model.
+
+   The dimension fields show **whole numbers with no up/down arrows**. They
+   still store the exact value behind the scenes, so the 48 ft reference size
+   reads `14630 mm` on screen but remains `14630.4 mm` for the generator; the
+   reference model is therefore still reproduced bit-for-bit.
 3. **Corrugation** — for each of the four rib sets (side wall, roof, floor,
    door end): rib count, slope width, relief depth, and the share of the flat
    span that becomes the crest.
@@ -163,7 +174,7 @@ to crest plane, `Z` = height with the floor crest plane at `Z = 0`.
 
 ```sh
 make test-params    # parameter maths only, plain Python, no FreeCAD needed
-make test           # all 46 tests: parameters, geometry, export, GUI, workbench
+make test           # all 67 tests: parameters, geometry, export, GUI, workbench
 ```
 
 `make test` runs `tests/run_tests.py` headless (`freecadcmd`) with an offscreen
