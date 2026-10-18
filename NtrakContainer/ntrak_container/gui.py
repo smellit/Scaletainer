@@ -79,8 +79,17 @@ class _IntBox(QtWidgets.QDoubleSpinBox):
         return f"{value:.0f}"
 
     def valueFromText(self, text: str) -> float:
+        # Qt hands us the *full* display line, including the prefix/suffix
+        # (e.g. "9000 mm").  float() would choke on the unit and the field
+        # would silently keep its old value, so strip the decorations first.
+        stripped = text.strip()
+        prefix, suffix = self.prefix(), self.suffix()
+        if prefix and stripped.startswith(prefix):
+            stripped = stripped[len(prefix):].strip()
+        if suffix and stripped.endswith(suffix):
+            stripped = stripped[:-len(suffix)].strip()
         try:
-            return float(text)
+            return float(stripped)
         except ValueError:
             return self.value()
 
@@ -211,9 +220,15 @@ class ContainerPanel(QtWidgets.QWidget):
             box.valueChanged.connect(lambda *_, n=name: self._dimension_edited(n))
             self._fields[name] = box
             form.addRow(label, box)
-        reset = QtWidgets.QPushButton("Restore 48 ft ISO defaults")
-        reset.clicked.connect(self._reset_dimensions)
-        form.addRow(reset)
+
+        # The panel opens on the reference 48 ft ISO size, which is exactly the
+        # dimension values the fields were just filled with.  Selecting it here
+        # (guarded so it does not re-fill the fields or refresh the preview mid
+        # construction) replaces the old "Restore defaults" button.
+        self._loading = True
+        self.size_combo.setCurrentIndex(self._size_index_for(
+            self.reference.length, self.reference.width, self.reference.height))
+        self._loading = False
         return page
 
     def _dimension_edited(self, name: str) -> None:

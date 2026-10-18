@@ -67,7 +67,8 @@ panel with five tabs:
    centre seam, hinge/handle size).
    Choosing a standard size fills the length, width and height; editing any of
    those three by hand switches the picker back to `-- custom --`, while the
-   other fields keep their values. Changing the input unit re-expresses these
+   other fields keep their values. The panel opens with the 48 ft reference
+   size already selected. Changing the input unit re-expresses these
    fields — and keeps the size selection — without changing the model.
 
    The dimension fields show **whole numbers with no up/down arrows**. They

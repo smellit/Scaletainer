@@ -118,6 +118,30 @@ class PanelTest(unittest.TestCase):
         self.assertAlmostEqual(box.value(), 14630.4, places=6)
         self.assertEqual(box.text().split()[0], "14630")
 
+    def test_typed_value_with_unit_suffix_is_accepted(self):
+        """Regression: the whole display line ("9000 mm") must parse, not revert.
+
+        valueFromText used to call float() on the text including the unit
+        suffix, which raised and silently kept the old value -- so a manually
+        entered dimension never took effect.
+        """
+        box = self.panel._fields["length"]
+        self.assertEqual(box.valueFromText("9000 mm"), 9000.0)
+        self.assertEqual(box.valueFromText("  9000  mm "), 9000.0)
+        self.assertEqual(box.valueFromText("9000"), 9000.0)
+        # an unparsable entry must keep the current value rather than crash
+        box.setValue(14630.4)
+        self.assertEqual(box.valueFromText("abc mm"), 14630.4)
+
+    def test_typing_into_custom_field_updates_the_model(self):
+        self.panel.size_combo.setCurrentIndex(0)      # "-- custom --"
+        box = self.panel._fields["length"]
+        box.lineEdit().setText("9000 mm")
+        box.interpretText()
+        self.assertAlmostEqual(box.value(), 9000.0, places=6)
+        self.assertAlmostEqual(self.panel.input_values()["length"], 9000.0,
+                               places=6)
+
     def test_size_selection_fills_dimensions_exactly(self):
         index = self.panel.size_combo.findText("20 ft dry (ISO 1AA)")
         self.assertGreater(index, 0)
@@ -129,6 +153,23 @@ class PanelTest(unittest.TestCase):
     def test_reference_size_selected_by_default(self):
         self.assertEqual(self.panel.size_combo.currentText(),
                          "48 ft x 8.5 x 9.5 ft (reference)")
+
+    def test_fresh_panel_opens_on_reference_size(self):
+        """Startup must select the reference size without restore_defaults."""
+        from ntrak_container import gui
+
+        fresh = gui.create_panel(self.tmp)
+        try:
+            self.assertEqual(fresh.size_combo.currentText(),
+                             "48 ft x 8.5 x 9.5 ft (reference)")
+            self.assertAlmostEqual(fresh._fields["length"].value(), 14630.4,
+                                   places=6)
+        finally:
+            fresh.close()
+
+    def test_no_restore_defaults_button(self):
+        buttons = [b.text() for b in self.panel.findChildren(QtWidgets.QPushButton)]
+        self.assertFalse([t for t in buttons if "Restore" in t], buttons)
 
     def test_manual_dimension_edit_drops_size_selection(self):
         index = self.panel.size_combo.findText("20 ft dry (ISO 1AA)")
