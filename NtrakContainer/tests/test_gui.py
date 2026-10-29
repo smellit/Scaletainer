@@ -69,15 +69,16 @@ class PanelTest(unittest.TestCase):
         self.assertAlmostEqual(self.panel._fields["length"].value(), 48.0, places=4)
         self.panel.unit_combo.setCurrentIndex(0)
 
-    def test_custom_scale_field(self):
-        self.panel.custom_scale.setText("1:87")
-        self.panel._custom_scale_applied()
+    def test_scale_combo_only(self):
+        """The preset combo is the only scale input; no custom field remains."""
+        self.assertFalse([w for w in self.panel.findChildren(QtWidgets.QLineEdit)
+                          if "custom" in w.placeholderText()],
+                         "custom modelling scale field should be gone")
+        self.panel.scale_combo.setCurrentIndex(self.panel.scale_combo.findData(87.0))
         self.assertEqual(self.panel._scale_divider(), 87.0)
-        self.panel.custom_scale.setText("nonsense")
-        self.panel._custom_scale_applied()
-        self.assertIn("Could not read", self.panel.status.text())
-        self.panel.custom_scale.clear()
+        self.panel.scale_combo.setCurrentIndex(self.panel.scale_combo.findData(160.0))
         self.panel._refresh_preview()
+        self.assertNotIn("Invalid", self.panel.status.text())
 
     def test_invalid_parameters_reported_not_raised(self):
         original = self.panel._fields["length"].value()
@@ -90,9 +91,8 @@ class PanelTest(unittest.TestCase):
         self.assertNotIn("Invalid", self.panel.status.text())
 
     def test_generate_writes_files(self):
-        self.panel.custom_scale.setText("1:220")
-        self.panel._custom_scale_applied()
-        self.assertEqual(self.panel._scale_divider(), 220.0)
+        self.panel.scale_combo.setCurrentIndex(self.panel.scale_combo.findData(225.0))
+        self.assertEqual(self.panel._scale_divider(), 225.0)
         self.panel.generate()
         self.assertIn("Wrote", self.panel.status.text())
         written = sorted(os.listdir(self.tmp))
@@ -166,6 +166,13 @@ class PanelTest(unittest.TestCase):
                                    places=6)
         finally:
             fresh.close()
+
+    def test_tab_order(self):
+        titles = [self.panel.tabs.tabText(i) for i in range(self.panel.tabs.count())]
+        self.assertEqual(
+            titles,
+            ["Dimensions (1:1)", "Corrugation", "Scale & options", "Preview",
+             "Generate"])
 
     def test_no_restore_defaults_button(self):
         buttons = [b.text() for b in self.panel.findChildren(QtWidgets.QPushButton)]

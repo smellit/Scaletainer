@@ -14,7 +14,7 @@ from PySide import QtWidgets
 
 from . import tasks
 from .params import ContainerParams
-from .units import SCALE_PRESETS, UNIT_LABELS, from_mm, parse_scale, to_mm
+from .units import SCALE_PRESETS, UNIT_LABELS, from_mm, to_mm
 
 #: 1:1 dimensions shown in the "Dimensions" tab
 DIMENSION_FIELDS = (
@@ -135,9 +135,9 @@ class ContainerPanel(QtWidgets.QWidget):
         tabs = QtWidgets.QTabWidget()
         self.tabs = tabs
         root.addWidget(tabs)
-        tabs.addTab(self._scale_tab(), "Scale & options")
         tabs.addTab(self._dimensions_tab(), "Dimensions (1:1)")
         tabs.addTab(self._ribs_tab(), "Corrugation")
+        tabs.addTab(self._scale_tab(), "Scale & options")
         tabs.addTab(self._preview_tab(), "Preview")
         tabs.addTab(self._output_tab(output_dir), "Generate")
         self.status = QtWidgets.QLabel(" ")
@@ -154,18 +154,12 @@ class ContainerPanel(QtWidgets.QWidget):
         self.unit_combo.currentIndexChanged.connect(self._unit_changed)
         form.addRow("Input unit", self.unit_combo)
 
-        row = QtWidgets.QHBoxLayout()
         self.scale_combo = QtWidgets.QComboBox()
         for label, divider in SCALE_PRESETS.items():
             self.scale_combo.addItem(label, divider)
         self.scale_combo.setCurrentIndex(list(SCALE_PRESETS.values()).index(160.0))
         self.scale_combo.activated.connect(lambda *_: self._refresh_preview())
-        row.addWidget(self.scale_combo, 1)
-        self.custom_scale = QtWidgets.QLineEdit()
-        self.custom_scale.setPlaceholderText("custom, e.g. 1:87")
-        self.custom_scale.editingFinished.connect(self._custom_scale_applied)
-        row.addWidget(self.custom_scale, 1)
-        form.addRow("Modelling scale", row)
+        form.addRow("Modelling scale", self.scale_combo)
 
         self.min_feature = _float_box(0.0, "mm", low=0.0)
         self.min_feature.valueChanged.connect(lambda *_: self._refresh_preview())
@@ -179,17 +173,6 @@ class ContainerPanel(QtWidgets.QWidget):
         self.inc_mount.setChecked(True)
         self.inc_mount.toggled.connect(lambda *_: self._refresh_preview())
         form.addRow("", self.inc_mount)
-
-        self.inc_door = QtWidgets.QCheckBox("Build ribbed door end")
-        self.inc_door.setChecked(True)
-        self.inc_door.toggled.connect(lambda *_: self._refresh_preview())
-        form.addRow("", self.inc_door)
-
-        self.inc_far_door = QtWidgets.QCheckBox("Build realistic double-door end (far side)")
-        self.inc_far_door.setChecked(True)
-        self.inc_far_door.setToolTip("Stays within the overall container length")
-        self.inc_far_door.toggled.connect(lambda *_: self._refresh_preview())
-        form.addRow("", self.inc_far_door)
 
         self.mount_count = _int_box(self.reference.mount_frame_count, high=50)
         self.mount_count.valueChanged.connect(lambda *_: self._refresh_preview())
@@ -339,12 +322,6 @@ class ContainerPanel(QtWidgets.QWidget):
 
     # --------------------------------------------------------------- state
     def _scale_divider(self) -> float:
-        text = self.custom_scale.text().strip()
-        if text:
-            try:
-                return parse_scale(text).divider
-            except ValueError:
-                pass
         return float(self.scale_combo.currentData())
 
     def input_values(self) -> dict:
@@ -362,8 +339,6 @@ class ContainerPanel(QtWidgets.QWidget):
         values["min_feature_mm"] = float(self.min_feature.value())
         values["min_rib_pitch_mm"] = float(self.min_pitch.value())
         values["include_mount_frame"] = self.inc_mount.isChecked()
-        values["include_door_side"] = self.inc_door.isChecked()
-        values["include_far_door"] = self.inc_far_door.isChecked()
         return values
 
     def selected_formats(self) -> tuple[str, ...]:
@@ -387,23 +362,6 @@ class ContainerPanel(QtWidgets.QWidget):
                 box.setSuffix(f" {new}")
                 box.setValue(from_mm(to_mm(box.value(), old), new))
         self._loading = False
-        self._refresh_preview()
-
-    def _custom_scale_applied(self) -> None:
-        text = self.custom_scale.text().strip()
-        if not text:
-            self._refresh_preview()
-            return
-        try:
-            scale = parse_scale(text)
-        except ValueError:
-            self.status.setText(f"Could not read the scale {text!r}.")
-            return
-        match = next((i for i, d in enumerate(SCALE_PRESETS.values())
-                      if abs(d - scale.divider) < 1e-9), None)
-        if match is not None:
-            self.scale_combo.setCurrentIndex(match)
-            self.custom_scale.clear()
         self._refresh_preview()
 
     def _size_index_for(self, length: float, width: float, height: float) -> int:
@@ -436,14 +394,11 @@ class ContainerPanel(QtWidgets.QWidget):
         """Reset the whole panel: 1:1 dimensions, scale and options."""
         self.unit_combo.setCurrentIndex(0)
         self._reset_dimensions()
-        self.custom_scale.clear()
         index = list(SCALE_PRESETS.values()).index(160.0)
         self.scale_combo.setCurrentIndex(index)
         self.min_feature.setValue(0.0)
         self.min_pitch.setValue(0.0)
         self.inc_mount.setChecked(True)
-        self.inc_door.setChecked(True)
-        self.inc_far_door.setChecked(True)
         self._refresh_preview()
 
     def _browse(self) -> None:

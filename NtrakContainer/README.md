@@ -1,8 +1,9 @@
 # Ntrak Container — FreeCAD add-on
 
 Generate a corrugated transport container (ISO box / tank-tainer style) at any
-modelling scale from **1:1 dimensions**. Type the real size of the container and
-the scale — `1:87` (HO), `1:160` (N), or anything else — and the add-on writes
+modelling scale from **1:1 dimensions**. Type the real size of the container,
+pick the scale — `1:87` (HO), `1:160` (N) or any other preset (the console
+accepts any divider) — and the add-on writes
 FreeCAD, STEP, STL and 3MF files.
 
 The generator is fully scripted: **no spreadsheet object is created in the
@@ -54,11 +55,7 @@ to stay together.
 **Ntrak Container → Generate container...** (shortcut `G` then `N`) opens a
 panel with five tabs:
 
-1. **Scale & options** — input unit (mm, cm, m, in, ft), the modelling scale
-   (preset list or a free-text `1:87`, `1/120`, `220`), the two printability
-   safety nets described below, and whether to build the mounting frame and the
-   door end.
-2. **Dimensions (1:1)** — a *Standard size* picker with the common ISO boxes
+1. **Dimensions (1:1)** — a *Standard size* picker with the common ISO boxes
    (20 ft dry / high cube / reefer, 40 ft dry / high cube, 45 ft high cube, the
    48 ft reference container and a 53 ft domestic) plus the real full-size
    measurements: overall length, width, height, end-frame/corner-fitting width,
@@ -75,9 +72,14 @@ panel with five tabs:
    still store the exact value behind the scenes, so the 48 ft reference size
    reads `14630 mm` on screen but remains `14630.4 mm` for the generator; the
    reference model is therefore still reproduced bit-for-bit.
-3. **Corrugation** — for each of the four rib sets (side wall, roof, floor,
+2. **Corrugation** — for each of the four rib sets (side wall, roof, floor,
    door end): rib count, slope width, relief depth, and the share of the flat
    span that becomes the crest.
+3. **Scale & options** — input unit (mm, cm, m, in, ft), the modelling scale
+   (preset list; a scale outside the presets such as `1:96` can still be passed
+   as `scale_divider` in the console), the two printability safety nets
+   described below, and whether to build the mounting frame ribs.  Both door
+   ends are always built.
 4. **Preview** — the derived scale-space numbers (model size, wall depth, rib
    pitch, mount rib size) plus a log of every adjustment applied.
 5. **Generate** — output folder, formats, and the button.
@@ -149,8 +151,8 @@ Two design rules make it safe:
   detail ~0.58 mm. The `min_feature_mm` safety net raises anything too thin for
   a coarser nozzle; the door detail then simply reads as a flat panel.
 
-Toggle it off with **Build realistic double-door end** on the Scale & options
-tab, or `include_far_door=False` in the console.
+Toggle it off with `include_far_door=False` in the console (the panel always
+builds both door ends).
 
 The reference model's `FrameMiddle` / `FrameBack` are PartDesign clones of
 `FrameFront`; here the three mounting ribs are one compound part, which is
