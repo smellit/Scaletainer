@@ -76,15 +76,57 @@ panel with five tabs:
    door end): rib count, slope width, relief depth, and the share of the flat
    span that becomes the crest.
 3. **Scale & options** — input unit (mm, cm, m, in, ft), the modelling scale
-   (preset list; a scale outside the presets such as `1:96` can still be passed
-   as `scale_divider` in the console), the two printability safety nets
-   described below, and whether to build the mounting frame ribs.  Both door
-   ends are always built.
+   (preset list; a scale outside the presets such as `1:96` can be stored in a
+   configuration file and is then added to the list, or passed as
+   `scale_divider` in the console), the two printability safety nets described
+   below, and whether to build the mounting frame ribs.  Both door ends are
+   always built.
 4. **Preview** — the derived scale-space numbers (model size, wall depth, rib
    pitch, mount rib size) plus a log of every adjustment applied.
 5. **Generate** — output folder, formats, and the button.
 
 Defaults reproduce the 48 ft ISO container of `../Container.FCStd` at 1:160.
+
+## Saving and loading configurations
+
+Above the tabs, **Save config...** / **Load config...** write and read a plain
+JSON file holding everything in the panel: the 1:1 dimensions, the corrugation
+patterns, the scale, the safety nets, the option toggles and the input unit.
+An optional *name* goes in the file too, and the path of the loaded file is
+shown under the buttons.
+
+```json
+{
+  "generator": "NtrakContainer/config",
+  "config_version": 1,
+  "name": "20 footer",
+  "unit": "in",
+  "values": {
+    "length": 238.5, "width": 96.0, "height": 102.0,
+    "side_ribs": {"count": 24, "slope": 1.97, "ratio": 0.2, "height": 1.42},
+    "scale_divider": 87.0, "min_feature_mm": 0.25, "include_mount_frame": true
+  },
+  "export": {"directory": "~/Ntrak", "formats": ["stl", "3mf"],
+             "separate_parts": false}
+}
+```
+
+* Dimensions are stored in the file's own `unit`, so loading a file written in
+  inches switches the panel to inches instead of rescaling the numbers.
+* **Save output folder, formats and parts option in config files** on the
+  Generate tab decides whether the `export` block is written. With it off, a
+  file carries only the design, and loading it leaves your current output
+  settings alone.
+* Files are validated on load: unknown keys, non-integer rib counts, unknown
+  formats or a file from a newer add-on version are reported in the status line
+  and the panel is left untouched.
+* The `.json` sidecar the generator writes next to each model is accepted too,
+  so a finished container can be opened again and tweaked.
+* A scale that is not one of the presets is kept: it is added to the *Modelling
+  scale* list when the file is loaded.
+
+The same format is available without the GUI through
+:mod:`ntrak_container.config` (`save` / `load` / `build` / `to_json`).
 
 ## Using the console
 
@@ -101,6 +143,25 @@ Defaults reproduce the 48 ft ISO container of `../Container.FCStd` at 1:160.
 All values are 1:1 millimetres unless `unit=` says otherwise. Anything you leave
 out keeps the reference value. `tasks.preview(values)` returns the derived
 numbers without building geometry.
+
+Configuration files work headless too — write one, then build straight from it:
+
+```python
+# freecadcmd
+>>> from ntrak_container import commands, config
+>>> config.save("~/Ntrak/box.json",
+...             {"length": 14630.4, "width": 2590.8, "height": 2895.6,
+...              "scale_divider": 87}, "mm",
+...             {"directory": "~/Ntrak", "formats": ["stl"],
+...              "separate_parts": False}, name="48 ft at HO")
+'/home/you/Ntrak/box.json'
+>>> print(commands.generate_from_config("~/Ntrak/box.json").text())
+```
+
+`generate_from_config(path)` uses the file's folder, formats and parts option;
+pass a second argument to send the output somewhere else. `config.load(path)`
+returns the validated `values` dict if you would rather call `tasks.generate`
+yourself.
 
 ## Printability at small scales
 

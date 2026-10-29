@@ -4,14 +4,19 @@ The panel collects **1:1** dimensions in the unit of your choice plus the
 modelling scale, shows the derived scale-space values, and writes the files.
 It calls the same :func:`ntrak_container.tasks.generate` the command line uses, so the
 preview and the result can never disagree.
+
+A whole panel state (dimensions, corrugation, scale, options and optionally the
+output settings) can be stored in a JSON file and read back with
+:mod:`ntrak_container.config`.
 """
 
 from __future__ import annotations
 
 import os
 
-from PySide import QtWidgets
+from PySide import QtCore, QtWidgets
 
+from . import config as config_io
 from . import tasks
 from .params import ContainerParams
 from .units import SCALE_PRESETS, UNIT_LABELS, from_mm, to_mm
@@ -125,6 +130,13 @@ class ContainerPanel(QtWidgets.QWidget):
         self.setMinimumWidth(580)
         self._preview: tasks.Preview | None = None
         self._stem: str | None = None
+        #: the file the panel's values came from / were last saved to
+        self.config_path: str | None = None
+        self.config_name: str = ""
+        #: option toggles a loaded file carried that have no widget here
+        self._hidden_options: dict[str, bool] = {}
+        #: divider of a scale a file added to the preset list, if any
+        self._file_scale: float | None = None
         self._build_ui(default_directory or os.path.expanduser("~/Ntrak"))
         self._refresh_preview()
 
@@ -132,6 +144,36 @@ class ContainerPanel(QtWidgets.QWidget):
     def _build_ui(self, output_dir: str) -> None:
         root = QtWidgets.QVBoxLayout(self)
         root.setContentsMargins(8, 8, 8, 8)
+
+        # Configuration files live above the tabs so they are reachable from
+        # any tab; the label shows which file the current values came from.
+        bar = QtWidgets.QHBoxLayout()
+        bar.addWidget(QtWidgets.QLabel("Configuration"))
+        self.config_name_edit = QtWidgets.QLineEdit()
+        self.config_name_edit.setPlaceholderText("optional name, e.g. 48 ft at 1:160")
+        self.config_name_edit.setToolTip(
+            "Name stored in the configuration file.")
+        self.config_name_edit.setText(self.config_name)
+        self.config_name_edit.textChanged.connect(self._config_name_edited)
+        bar.addWidget(self.config_name_edit, 1)
+        self.save_config_button = QtWidgets.QPushButton("Save config...")
+        self.save_config_button.setToolTip(
+            "Write the dimensions, corrugation, scale, options and output "
+            "settings to a JSON file.")
+        self.save_config_button.clicked.connect(lambda _: self.save_config())
+        bar.addWidget(self.save_config_button)
+        self.load_config_button = QtWidgets.QPushButton("Load config...")
+        self.load_config_button.setToolTip(
+            "Fill the panel from a saved JSON configuration (a generated "
+            ".json sidecar also works).")
+        self.load_config_button.clicked.connect(lambda _: self.load_config())
+        bar.addWidget(self.load_config_button)
+        root.addLayout(bar)
+
+        self.config_label = QtWidgets.QLabel("no configuration file")
+        self.config_label.setTextInteractionFlags(QtCore.Qt.TextSelectableByMouse)
+        root.addWidget(self.config_label)
+
         tabs = QtWidgets.QTabWidget()
         self.tabs = tabs
         root.addWidget(tabs)
@@ -312,6 +354,16 @@ class ContainerPanel(QtWidgets.QWidget):
         self.parts_check.setChecked(True)
         form.addRow(self.parts_check)
 
+        # A configuration file remembers these too, so they get their own
+        # "remember output settings" row rather than being reset on load.
+        self.remember_export = QtWidgets.QCheckBox(
+            "Save output folder, formats and parts option in config files")
+        self.remember_export.setToolTip(
+            "On: a config file also stores the output settings below.\n"
+            "Off: only the dimensions, corrugation, scale and options are saved.")
+        self.remember_export.setChecked(True)
+        form.addRow(self.remember_export)
+
         buttons = QtWidgets.QHBoxLayout()
         self.generate_button = QtWidgets.QPushButton("Generate container")
         self.generate_button.setDefault(True)
@@ -339,6 +391,8 @@ class ContainerPanel(QtWidgets.QWidget):
         values["min_feature_mm"] = float(self.min_feature.value())
         values["min_rib_pitch_mm"] = float(self.min_pitch.value())
         values["include_mount_frame"] = self.inc_mount.isChecked()
+        # options without a widget here (kept from a loaded file)
+        values.update(self._hidden_options)
         return values
 
     def selected_formats(self) -> tuple[str, ...]:
@@ -348,10 +402,234 @@ class ContainerPanel(QtWidgets.QWidget):
     def output_directory(self) -> str:
         return os.path.expanduser(self.dir_edit.text().strip() or ".")
 
+    # ------------------------------------------------------ config files
+    def export_options(self) -> config_io.ExportOptions:
+        """The Generate-tab output settings stored alongside a configuration."""
+        return config_io.ExportOptions(
+            directory=self.dir_edit.text().strip() or None,
+            formats=self.selected_formats(),
+            separate_parts=self.parts_check.isChecked())
+
+    def config(self, name: str | None = None) -> config_io.ContainerConfig:
+        """Snapshot the whole panel as a :class:`config_io.ContainerConfig`."""
+        export = self.export_options() if self.remember_export.isChecked() else None
+        return config_io.build(self.input_values(), self._unit, export,
+                               name=name if name is not None else self.config_name)
+
+    def _default_config_name(self) -> str:
+        """Suggested file name for Save config, without stray dots.
+
+        The 1:1 fields store exact values (``14630.4``), but a name full of
+        decimal points reads as a file extension, so the suggested name rounds
+        the size like the fields display it and spells the scale with a dash.
+        """
+        values = self.input_values()
+        size = "x".join(f"{round(float(values[k])):d}"
+                        for k in ("length", "width", "height"))
+        scale = f"{float(values['scale_divider']):g}".replace(".", "-")
+        return config_io.with_extension(f"container-{size}-1-{scale}")
+
+    def _config_name_edited(self, text: str) -> None:
+        self.config_name = text.strip()
+        self._update_config_label()
+
+    def _update_config_label(self) -> None:
+        if self.config_path:
+            name = f"{self.config_name} - " if self.config_name else ""
+            self.config_label.setText(f"{name}{self.config_path}")
+            self.config_label.setToolTip(self.config_path)
+        else:
+            self.config_label.setText("no configuration file")
+            self.config_label.setToolTip("Save or load the panel values as JSON")
+
+    def apply_config(self, cfg: config_io.ContainerConfig,
+                     path: str | None = None) -> list[str]:
+        """Fill every widget from a loaded configuration.
+
+        Returns the keys whose value was outside a widget's range and therefore
+        clamped.
+
+        The file's input unit is adopted as-is: its numbers were typed in that
+        unit, so they are written straight into the fields instead of being
+        converted through the unit combo (which would rescale them).
+        """
+        unit = cfg.unit if cfg.unit in UNIT_LABELS else "mm"
+        values = cfg.values
+        self._loading = True
+        try:
+            index = self.unit_combo.findData(unit)
+            if index >= 0:
+                self.unit_combo.setCurrentIndex(index)
+            self._unit = unit
+            for box in self._fields.values():
+                box.setSuffix(f" {unit}")
+            for fields in self._rib_fields.values():
+                for key in ("slope", "height"):
+                    fields[key].setSuffix(f" {unit}")
+
+            for name, box in self._fields.items():
+                value = values.get(name)
+                if value is None:
+                    value = from_mm(getattr(self.reference, name), unit)
+                box.setValue(float(value))
+
+            for name, fields in self._rib_fields.items():
+                pattern = values.get(name)
+                if pattern is None:      # file omits this rib set: keep reference
+                    ref = getattr(self.reference, name)
+                    pattern = {"count": ref.count, "slope": ref.slope,
+                               "ratio": ref.ratio, "height": ref.height}
+                fields["count"].setValue(int(pattern["count"]))
+                fields["slope"].setValue(float(pattern["slope"]))
+                fields["height"].setValue(float(pattern["height"]))
+                fields["ratio"].setValue(float(pattern["ratio"]))
+
+            if values.get("mount_frame_count") is not None:
+                self.mount_count.setValue(int(values["mount_frame_count"]))
+            else:
+                self.mount_count.setValue(self.reference.mount_frame_count)
+
+            self._select_scale(values.get("scale_divider"))
+            self.min_feature.setValue(float(values.get("min_feature_mm") or 0.0))
+            self.min_pitch.setValue(float(values.get("min_rib_pitch_mm") or 0.0))
+            if values.get("include_mount_frame") is not None:
+                self.inc_mount.setChecked(bool(values["include_mount_frame"]))
+            # toggles with no widget here are kept so generate() honours them
+            self._hidden_options = {
+                key: bool(values[key])
+                for key in ("include_door_side", "include_far_door")
+                if values.get(key) is not None}
+
+            if cfg.export is not None:
+                export = cfg.export
+                if export.directory:
+                    self.dir_edit.setText(export.directory)
+                if export.formats:
+                    chosen = set(export.formats)
+                    for key, check in self.format_checks:
+                        check.setChecked(key in chosen)
+                if export.separate_parts is not None:
+                    self.parts_check.setChecked(bool(export.separate_parts))
+
+            self.config_name = cfg.name or ""
+            self.config_name_edit.setText(self.config_name)
+            self.config_path = os.path.abspath(os.path.expanduser(path)) if path else None
+            # the loaded length/width/height may still match a standard size
+            # (_size_index_for compares against 1:1 millimetres)
+            self.size_combo.setCurrentIndex(self._size_index_for(
+                *[to_mm(float(self._fields[k].value()), unit)
+                  for k in ("length", "width", "height")]))
+        finally:
+            self._loading = False
+        self._update_config_label()
+        self._refresh_preview()
+        return self._clamped_keys(cfg)
+
+    def _config_widgets(self) -> dict[str, QtWidgets.QSpinBox]:
+        """Every widget a configuration value is written into."""
+        widgets: dict[str, QtWidgets.QSpinBox] = dict(self._fields)
+        for name, fields in self._rib_fields.items():
+            for key, box in fields.items():
+                widgets[f"{name}.{key}"] = box
+        widgets["mount_frame_count"] = self.mount_count
+        widgets["min_feature_mm"] = self.min_feature
+        widgets["min_rib_pitch_mm"] = self.min_pitch
+        return widgets
+
+    def _clamped_keys(self, cfg: config_io.ContainerConfig) -> list[str]:
+        """File values outside a widget's range, which Qt silently clamps."""
+        widgets = self._config_widgets()
+        out = []
+        for key, wanted in sorted(cfg.values.items()):
+            if isinstance(wanted, dict):
+                for field, value in wanted.items():
+                    box = widgets.get(f"{key}.{field}")
+                    if box is not None and not box.minimum() <= value <= box.maximum():
+                        out.append(f"{key}.{field}")
+                continue
+            box = widgets.get(key)
+            if box is not None and not box.minimum() <= wanted <= box.maximum():
+                out.append(key)
+        return out
+
+    def _select_scale(self, divider) -> None:
+        """Pick the preset for *divider*, adding it to the combo when new.
+
+        A scale that is not one of the presets (from the console or a hand
+        written file) is kept rather than snapping to a preset.  Only one such
+        entry exists at a time, so loading several files cannot fill the list.
+        """
+        if divider is None:
+            return
+        divider = float(divider)
+        if self._file_scale is not None:
+            stale = self.scale_combo.findData(self._file_scale)
+            if stale >= 0:
+                self.scale_combo.removeItem(stale)
+            self._file_scale = None
+        index = self.scale_combo.findData(divider)
+        if index < 0:
+            self.scale_combo.addItem(f"1:{divider:g} (from file)", divider)
+            index = self.scale_combo.findData(divider)
+            self._file_scale = divider
+        self.scale_combo.setCurrentIndex(index)
+
+    def save_config(self, path: str | None = None, name: str | None = None) -> str | None:
+        """Write the panel to a JSON file; asks for a path when none is given."""
+        if name is not None:
+            self.config_name = name
+        if not path:
+            start = self.config_path or os.path.join(
+                self.output_directory(), self._default_config_name())
+            chosen, _ = QtWidgets.QFileDialog.getSaveFileName(
+                self, "Save container configuration", start,
+                "Container configuration (*.json);;All files (*)")
+            if not chosen:
+                return None
+            path = chosen
+        try:
+            written = config_io.write(self.config(),
+                                      config_io.with_extension(
+                                          os.path.expanduser(path)))
+        except (config_io.ConfigError, OSError) as exc:
+            self.status.setText(f"Could not save configuration: {exc}")
+            return None
+        self.config_path = written
+        self._update_config_label()
+        self.status.setText(f"Saved configuration to {written}.")
+        return written
+
+    def load_config(self, path: str | None = None) -> config_io.ContainerConfig | None:
+        """Read a JSON file into the panel; asks for one when none is given."""
+        if not path:
+            start = self.config_path or self.output_directory()
+            chosen, _ = QtWidgets.QFileDialog.getOpenFileName(
+                self, "Load container configuration", start,
+                "Container configuration (*.json);;All files (*)")
+            if not chosen:
+                return None
+            path = chosen
+        try:
+            cfg = config_io.load(path)
+        except config_io.ConfigError as exc:
+            self.status.setText(f"Could not load configuration: {exc}")
+            return None
+        clamped = self.apply_config(cfg, path)
+        message = f"Loaded {cfg.describe()}."
+        if clamped:
+            # Qt clamps out-of-range values silently, so say which field moved
+            message += (" Some values are outside the field limits and were "
+                        "clamped: " + ", ".join(clamped) + ".")
+        self.status.setText(message)
+        return cfg
+
     def _unit_changed(self, _index: int) -> None:
         """Re-express every 1:1 field in the new unit, keeping the model size."""
         old, new = self._unit, str(self.unit_combo.currentData())
         self._unit = new
+        if self._loading:
+            # a load sets the fields from the file itself: no re-conversion
+            return
         self._loading = True             # programmatic change: keep size selected
         for box in self._fields.values():
             box.setSuffix(f" {new}")
@@ -394,16 +672,24 @@ class ContainerPanel(QtWidgets.QWidget):
         """Reset the whole panel: 1:1 dimensions, scale and options."""
         self.unit_combo.setCurrentIndex(0)
         self._reset_dimensions()
-        index = list(SCALE_PRESETS.values()).index(160.0)
-        self.scale_combo.setCurrentIndex(index)
+        # also drops a "(from file)" entry a loaded config may have added
+        self._select_scale(160.0)
         self.min_feature.setValue(0.0)
         self.min_pitch.setValue(0.0)
         self.inc_mount.setChecked(True)
+        self._hidden_options = {}
+        self.config_name = ""
+        self.config_name_edit.setText("")
+        self.config_path = None      # the panel no longer matches any file
+        self._update_config_label()
         self._refresh_preview()
 
     def _browse(self) -> None:
         start = self.output_directory()
-        chosen, _ = QtWidgets.QFileDialog.getExistingDirectory(self, "Output folder", start)
+        # unlike getSaveFileName/getOpenFileName this returns a plain str, not
+        # a (path, filter) tuple -- unpacking it raised and left the field alone
+        chosen = QtWidgets.QFileDialog.getExistingDirectory(
+            self, "Output folder", start)
         if chosen:
             self.dir_edit.setText(chosen)
 

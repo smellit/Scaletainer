@@ -6,6 +6,7 @@
 #   make uninstall
 #   make test                       all tests, needs freecadcmd
 #   make test-params                parameter tests only (plain Python)
+#   make test-config                configuration file tests only (plain Python)
 
 SRC     := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 NAME    := NtrakContainer
@@ -14,7 +15,7 @@ FREECAD ?= flatpak run --command=freecadcmd org.freecad.FreeCAD
 # Default target: the Flatpak user Mod directory.
 DESTDIR ?= $(HOME)/.var/app/org.freecad.FreeCAD/data/FreeCAD/v1-1/Mod
 
-.PHONY: install uninstall link test test-params lint
+.PHONY: install uninstall link test test-params test-config lint
 
 install:
 	@mkdir -p "$(DESTDIR)"
@@ -39,6 +40,9 @@ uninstall:
 
 test-params:
 	@cd "$(SRC)" && python3 -m unittest discover -s tests -p 'test_params.py' -v
+
+test-config:
+	@cd "$(SRC)" && python3 -m unittest discover -s tests -p 'test_config.py' -v
 
 test:
 	@cd "$(SRC)" && QT_QPA_PLATFORM=offscreen $(FREECAD) tests/run_tests.py

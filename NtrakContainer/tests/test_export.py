@@ -97,6 +97,67 @@ class ExportTest(unittest.TestCase):
         self.assertEqual(exporter.safe_name("1:160 (N)"), "1-160-N")
         self.assertEqual(exporter.safe_name("///"), "container")
 
+    def test_sidecar_loads_as_config(self):
+        """The written sidecar is a valid input for ntrak_container.config."""
+        from ntrak_container import config as config_io
+
+        path = os.path.join(self.tmp, f"{self.result.stem}.json")
+        cfg = config_io.load(path)
+        self.assertEqual(cfg.unit, "mm")
+        self.assertAlmostEqual(cfg.values["length"], 48 * 304.8, places=6)
+        self.assertEqual(cfg.values["scale_divider"], 87.0)
+        self.assertEqual(cfg.values["side_ribs"]["count"],
+                         ContainerParams.reference().side_ribs.count)
+        # and it feeds tasks unchanged
+        from ntrak_container import tasks
+
+        built = tasks.build_config(cfg.values)
+        self.assertTrue(built.include_mount_frame)
+        self.assertTrue(built.include_far_door)
+
+
+class ConfigGenerateTest(unittest.TestCase):
+    """commands.generate_from_config builds straight from a saved file."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp(prefix="ntrak_cfggen_")
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _config_file(self, directory=None):
+        from ntrak_container import config as config_io
+
+        p = ContainerParams.reference()
+        values = {"length": p.length, "width": p.width, "height": p.height,
+                  "scale_divider": 87.0,
+                  "side_ribs": {"count": p.side_ribs.count, "slope": p.side_ribs.slope,
+                                "ratio": p.side_ribs.ratio, "height": p.side_ribs.height}}
+        export = {"directory": directory or self.tmp, "formats": ["stl"],
+                  "separate_parts": False}
+        return config_io.save(os.path.join(self.tmp, "box.json"), values, "mm",
+                              export, name="probe")
+
+    def test_generates_from_file(self):
+        from ntrak_container import commands
+
+        result = commands.generate_from_config(self._config_file(),
+                                               progress=lambda m: None)
+        stl = os.path.join(self.tmp, result.stem + ".stl")
+        self.assertTrue(os.path.isfile(stl))
+        self.assertEqual(result.stem, "Ntrak-168x30x33-1-87")
+
+    def test_directory_argument_overrides_the_file(self):
+        from ntrak_container import commands
+
+        override = os.path.join(self.tmp, "elsewhere")
+        result = commands.generate_from_config(self._config_file(), override,
+                                               progress=lambda m: None)
+        self.assertEqual(result.directory, override)
+        self.assertTrue(os.path.isdir(override))
+
+
+
 
 if __name__ == "__main__":
     def main():

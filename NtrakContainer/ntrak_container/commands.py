@@ -1,13 +1,16 @@
 """Workbench commands and the console entry point.
 
 ``Ntrak_Container_Generate`` opens the panel.  :func:`generate_cli` does the
-same job without any Qt, which is what ``freecadcmd`` and the test suite use.
+same job without any Qt, which is what ``freecadcmd`` and the test suite use,
+and :func:`generate_from_config` builds straight from a saved configuration
+file.
 """
 
 from __future__ import annotations
 
 import os
 
+from . import config
 from . import tasks
 
 #: default output folder: the user's home directory unless NTRAK_OUTPUT says so
@@ -28,6 +31,28 @@ def generate_cli(values: dict, directory: str | None = None, *, unit: str = "mm"
     return tasks.generate(values, os.path.expanduser(directory or DEFAULT_OUTPUT),
                           unit=unit, formats=formats,
                           separate_parts=separate_parts, progress=progress)
+
+
+def generate_from_config(path: str, directory: str | None = None, *,
+                         progress=print):
+    """Generate from a saved configuration file.
+
+    The file's own output folder, formats and per-component option are used
+    unless *directory* overrides the folder.
+
+    >>> generate_from_config("~/Ntrak/container-14630x2591x2896-1-160.json")
+    """
+    cfg = config.load(path)
+    export = cfg.export
+    return tasks.generate(
+        cfg.values,
+        os.path.expanduser(directory or (export and export.directory)
+                           or DEFAULT_OUTPUT),
+        unit=cfg.unit,
+        formats=export.formats or ("fcstd", "step", "stl", "3mf"),
+        separate_parts=True if export is None or export.separate_parts is None
+        else bool(export.separate_parts),
+        progress=progress)
 
 
 def open_panel():

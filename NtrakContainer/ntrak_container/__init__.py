@@ -8,6 +8,7 @@ Modules:
 * :mod:`ntrak.builder` -- FreeCAD ``Part`` shapes and document assembly
 * :mod:`ntrak_container.exporter` -- FCStd / STEP / STL / 3MF writers
 * :mod:`ntrak_container.tasks` -- one-call headless entry point used by the GUI and CLI
+* :mod:`ntrak_container.config` -- JSON save/load of panel values and options
 
 The whole pipeline runs without a spreadsheet object: every parameter is
 computed in Python and baked into the geometry.
