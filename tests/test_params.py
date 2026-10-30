@@ -10,9 +10,9 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ntrak_container.params import (BuildConfig, ContainerParams, RibPattern,
+from scaletainer.params import (BuildConfig, ContainerParams, RibPattern,
                                     derive)
-from ntrak_container.units import (SCALE_PRESETS, Scale, from_mm, parse_scale,
+from scaletainer.units import (SCALE_PRESETS, Scale, from_mm, parse_scale,
                                    to_mm)
 
 

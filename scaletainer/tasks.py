@@ -15,7 +15,7 @@ from .units import Scale, to_mm
 #: scalar 1:1 dimension fields, in the order the dialog shows them
 INPUT_FIELDS = ("length", "width", "height", "frame_size", "door_frame_width",
                 "top_skin", "bottom_skin")
-#: fields holding a :class:`~ntrak_container.params.RibPattern`
+#: fields holding a :class:`~scaletainer.params.RibPattern`
 RIB_FIELDS = ("side_ribs", "top_ribs", "bottom_ribs", "door_ribs")
 #: mounting frame fields
 MOUNT_FIELDS = ("mount_frame_depth", "mount_frame_wall", "mount_frame_chamfer")
@@ -145,7 +145,7 @@ def generate(values: dict, directory: str, *, unit: str = "mm",
              progress=None):
     """Generate the model and write the requested files.
 
-    Returns an :class:`ntrak_container.exporter.ExportResult`.  Unless ``keep_document``
+    Returns an :class:`scaletainer.exporter.ExportResult`.  Unless ``keep_document``
     is set, the temporary FreeCAD document is closed again, which keeps headless
     runs tidy.
     """

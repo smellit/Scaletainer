@@ -23,7 +23,7 @@ INIT_GUI = os.path.join(ROOT, "InitGui.py")
 INIT_PY = os.path.join(ROOT, "Init.py")
 #: where the add-on lives once installed, used for the icon path check
 INSTALLED = os.path.expanduser(
-    "~/.var/app/org.freecad.FreeCAD/data/FreeCAD/v1-1/Mod/NtrakContainer/InitGui.py")
+    "~/.var/app/org.freecad.FreeCAD/data/FreeCAD/v1-1/Mod/Scaletainer/InitGui.py")
 
 
 class FakeWorkbench:
@@ -69,7 +69,7 @@ def exec_freecad_style(path: str, gui, target: str) -> dict:
 
 class WorkbenchInitTest(unittest.TestCase):
     def setUp(self):
-        sys.modules.pop("ntrak_container.commands", None)
+        sys.modules.pop("scaletainer.commands", None)
         self._saved_gui = sys.modules.get("FreeCADGui")
         self.gui = FakeGui()
         sys.modules["FreeCADGui"] = self.gui
@@ -79,14 +79,14 @@ class WorkbenchInitTest(unittest.TestCase):
             sys.modules["FreeCADGui"] = self._saved_gui
         else:
             sys.modules.pop("FreeCADGui", None)
-        sys.modules.pop("ntrak_container.commands", None)
+        sys.modules.pop("scaletainer.commands", None)
 
     def test_registers_under_freedcad_exec_semantics(self):
         exec_freecad_style(INIT_GUI, self.gui, INSTALLED)
         self.assertEqual(len(self.gui.added), 1,
                          "workbench must register exactly once")
         workbench = self.gui.added[0]
-        self.assertEqual(workbench.MenuText, "Ntrak Container")
+        self.assertEqual(workbench.MenuText, "Scaletainer")
         self.assertEqual(workbench.GetClassName(), "Gui::PythonWorkbench")
 
     def test_icon_path_resolves_next_to_installed_init(self):
@@ -107,7 +107,7 @@ class WorkbenchInitTest(unittest.TestCase):
         directory, so a test that depends on it cannot be trusted.
         """
         with tempfile.TemporaryDirectory() as installed_dir:
-            for name in ("ntrak_container", "resources"):
+            for name in ("scaletainer", "resources"):
                 os.symlink(os.path.join(ROOT, name),
                            os.path.join(installed_dir, name))
             shutil.copyfile(INIT_GUI, os.path.join(installed_dir, "InitGui.py"))
@@ -136,10 +136,10 @@ class WorkbenchInitTest(unittest.TestCase):
         exec_freecad_style(INIT_GUI, self.gui, INSTALLED)
         workbench = self.gui.added[0]
         workbench.Initialize()
-        self.assertIn("Ntrak_Container_Generate", self.gui.commands)
+        self.assertIn("Scaletainer_Generate", self.gui.commands)
         self.assertEqual(workbench.toolbars,
-                         [("Ntrak Container", ["Ntrak_Container_Generate"])])
-        self.assertEqual(workbench.menus, [("Ntrak", ["Ntrak_Container_Generate"])])
+                         [("Scaletainer", ["Scaletainer_Generate"])])
+        self.assertEqual(workbench.menus, [("Scaletainer", ["Scaletainer_Generate"])])
 
     def test_console_stub_registers_nothing(self):
         """A FreeCADGui without the workbench API must be ignored silently."""
@@ -179,7 +179,7 @@ class WorkbenchInitTest(unittest.TestCase):
         sys.path[:] = saved
 
     def test_command_resources_point_at_icon(self):
-        from ntrak_container import commands
+        from scaletainer import commands
 
         resources = commands.GenerateCommand().GetResources()
         self.assertTrue(resources["Pixmap"].endswith("container.svg"))

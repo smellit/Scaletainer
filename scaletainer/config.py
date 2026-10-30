@@ -10,17 +10,17 @@ used as the starting point for a variant.
 The file is a single JSON object::
 
     {
-      "generator": "NtrakContainer/config",
+      "generator": "Scaletainer/config",
       "config_version": 1,
       "name": "48 ft reference at 1:160",
       "unit": "mm",
       "values": { "length": 14630.4, ..., "side_ribs": {...}, ... },
-      "export": { "directory": "~/Ntrak", "formats": ["fcstd", "stl"],
+      "export": { "directory": "~/Scaletainer", "formats": ["fcstd", "stl"],
                   "separate_parts": true }
     }
 
-``values`` holds the plain dict :mod:`ntrak_container.tasks` expects, so a file
-can also be fed straight to :func:`ntrak_container.tasks.generate`.  Two other
+``values`` holds the plain dict :mod:`scaletainer.tasks` expects, so a file
+can also be fed straight to :func:`scaletainer.tasks.generate`.  Two other
 shapes are accepted on load for convenience:
 
 * a **bare values dict** (top-level ``length``/``width``/``height``), which is
@@ -45,7 +45,9 @@ from .units import UNITS
 _EXT_RE = re.compile(r"\.[A-Za-z][A-Za-z0-9]{0,7}")
 
 #: marks the file and guards against reading someone else's JSON
-FORMAT = "NtrakContainer/config"
+FORMAT = "Scaletainer/config"
+#: files written before the add-on was renamed from "Ntrak Container"
+LEGACY_FORMATS = ("NtrakContainer/config",)
 CONFIG_VERSION = 1
 
 #: 1:1 lengths, stored in the file's ``unit``
@@ -68,7 +70,7 @@ BOOL_KEYS = ("include_mount_frame", "include_door_side", "include_far_door")
 #: every key accepted inside ``values``
 VALUE_KEYS = LENGTH_KEYS + COUNT_KEYS + NUMBER_KEYS + RIB_KEYS + BOOL_KEYS
 
-#: formats accepted by :func:`ntrak_container.tasks.generate`
+#: formats accepted by :func:`scaletainer.tasks.generate`
 EXPORT_FORMATS = ("fcstd", "step", "stl", "3mf")
 
 
@@ -261,9 +263,9 @@ def from_dict(data: dict) -> ContainerConfig:
     if "input_1to1" in data:
         values, unit = _values_from_sidecar(data)
         return build(values, unit, name=str(data.get("name") or ""))
-    if "values" in data or data.get("generator") == FORMAT:
+    if "values" in data or data.get("generator") in (FORMAT, *LEGACY_FORMATS):
         marker = data.get("generator")
-        if marker not in (None, FORMAT):
+        if marker not in (None, FORMAT, *LEGACY_FORMATS):
             raise ConfigError(f"not a container configuration: {marker!r}")
         version = data.get("config_version", CONFIG_VERSION)
         try:

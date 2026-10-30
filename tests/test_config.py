@@ -14,8 +14,8 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ntrak_container import config
-from ntrak_container.params import BuildConfig, ContainerParams
+from scaletainer import config
+from scaletainer.params import BuildConfig, ContainerParams
 
 
 def sample_values() -> dict:
@@ -48,7 +48,7 @@ def sample_values() -> dict:
 class RoundTripTest(unittest.TestCase):
     def test_full_config_survives_json(self):
         values = sample_values()
-        cfg = config.build(values, "mm", {"directory": "~/Ntrak",
+        cfg = config.build(values, "mm", {"directory": "~/Scaletainer",
                                           "formats": ["stl", "3mf"],
                                           "separate_parts": False},
                            name="my box")
@@ -56,12 +56,12 @@ class RoundTripTest(unittest.TestCase):
         self.assertEqual(back.values, cfg.values)
         self.assertEqual(back.unit, "mm")
         self.assertEqual(back.name, "my box")
-        self.assertEqual(back.export.directory, "~/Ntrak")
+        self.assertEqual(back.export.directory, "~/Scaletainer")
         self.assertEqual(back.export.formats, ("stl", "3mf"))
         self.assertIs(back.export.separate_parts, False)
 
     def test_file_roundtrip(self):
-        tmp = tempfile.mkdtemp(prefix="ntrak_cfg_")
+        tmp = tempfile.mkdtemp(prefix="scaletainer_cfg_")
         try:
             path = config.save(os.path.join(tmp, "box.json"), sample_values(),
                                "mm", config.ExportOptions(
@@ -80,7 +80,7 @@ class RoundTripTest(unittest.TestCase):
             shutil.rmtree(tmp, ignore_errors=True)
 
     def test_creates_missing_folder(self):
-        tmp = tempfile.mkdtemp(prefix="ntrak_cfg_")
+        tmp = tempfile.mkdtemp(prefix="scaletainer_cfg_")
         try:
             target = os.path.join(tmp, "configs", "box.json")
             config.save(target, {"length": 6058.0})
@@ -90,7 +90,7 @@ class RoundTripTest(unittest.TestCase):
 
     def test_values_are_usable_by_tasks(self):
         """A loaded file feeds the same pipeline the GUI calls."""
-        from ntrak_container import tasks
+        from scaletainer import tasks
 
         cfg = config.build(sample_values(), "mm")
         params = tasks.container_params(cfg.values, cfg.unit)
@@ -129,7 +129,7 @@ class AlternateShapesTest(unittest.TestCase):
     def test_sidecar_is_readable(self):
         """The .json the generator writes can be loaded back as a config."""
         side = {
-            "generator": "NtrakContainer", "unit": "mm", "scale": "1:87",
+            "generator": "Scaletainer", "unit": "mm", "scale": "1:87",
             "input_1to1": {k: v for k, v in sample_values().items()
                            if k in config.LENGTH_KEYS + config.RIB_KEYS
                            or k in config.COUNT_KEYS},
@@ -146,8 +146,15 @@ class AlternateShapesTest(unittest.TestCase):
         self.assertIs(cfg.values["include_far_door"], False)
         self.assertEqual(cfg.unit, "mm")
         # it then feeds tasks unchanged
-        from ntrak_container import tasks
+        from scaletainer import tasks
         self.assertFalse(tasks.build_config(cfg.values).include_far_door)
+
+    def test_legacy_generator_marker_accepted(self):
+        """Files saved before the add-on was named Scaletainer still load."""
+        cfg = config.from_dict({"generator": "NtrakContainer/config",
+                                "config_version": 1,
+                                "values": sample_values()})
+        self.assertAlmostEqual(cfg.values["length"], sample_values()["length"])
 
     def test_other_generator_marker_rejected(self):
         with self.assertRaises(config.ConfigError):
@@ -236,7 +243,7 @@ class ValidationTest(unittest.TestCase):
         self.assertIn("could not read", str(ctx.exception).lower())
 
     def test_error_names_the_file(self):
-        tmp = tempfile.mkdtemp(prefix="ntrak_cfg_")
+        tmp = tempfile.mkdtemp(prefix="scaletainer_cfg_")
         try:
             path = os.path.join(tmp, "broken.json")
             with open(path, "w", encoding="utf-8") as handle:

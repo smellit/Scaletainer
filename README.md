@@ -1,4 +1,4 @@
-# Ntrak Container — FreeCAD add-on
+# Scaletainer — FreeCAD add-on
 
 Generate a corrugated transport container (ISO box / tank-tainer style) at any
 modelling scale from **1:1 dimensions**. Type the real size of the container,
@@ -26,7 +26,7 @@ For an AppImage / system package, install into its own Mod directory:
 make install DESTDIR=~/.local/share/FreeCAD/Mod
 ```
 
-Then restart FreeCAD and pick the **Ntrak Container** workbench from the
+Then restart FreeCAD and pick the **Scaletainer** workbench from the
 workbench selector. `make uninstall` removes the installed copy again,
 `make test` runs the headless test suite and `make test-params` the parameter
 tests that need no FreeCAD at all.
@@ -36,30 +36,30 @@ clone it straight into the `Mod` directory under the add-on name:
 
 ```sh
 git clone https://github.com/smellit/Ntrak.git \
-  ~/.var/app/org.freecad.FreeCAD/data/FreeCAD/v1-1/Mod/NtrakContainer
+  ~/.var/app/org.freecad.FreeCAD/data/FreeCAD/v1-1/Mod/Scaletainer
 ```
 
 Whichever way you install it, `Init.py`, `InitGui.py`, `package.json`,
-`ntrak_container/` and `resources/` need to stay together, and the folder in
-`Mod` must be named `NtrakContainer`.
+`scaletainer/` and `resources/` need to stay together, and the folder in
+`Mod` must be named `Scaletainer`.
 
 ### Troubleshooting
 
 * **Workbench not in the list** — FreeCAD scans `Mod` at startup, so a full
   restart is required after installing or updating. Check that
-  `Mod/NtrakContainer/InitGui.py` exists and that the folder matches the name
+  `Mod/Scaletainer/InitGui.py` exists and that the folder matches the name
   in `package.json`.
 * **Verify the install from a terminal** — start FreeCAD from a shell and look
   for a line reading `During initialization the error ... occurred in
-  .../NtrakContainer/InitGui.py`; FreeCAD prints it when an add-on fails to
+  .../Scaletainer/InitGui.py`; FreeCAD prints it when an add-on fails to
   load. `make test` includes a regression test for the workbench registration.
 * **Console check** — `freecadcmd` should accept
-  `from ntrak_container import tasks` without errors; if it does not, the
+  `from scaletainer import tasks` without errors; if it does not, the
   add-on folder is not on the FreeCAD `Mod` path.
 
 ## Using the GUI
 
-**Ntrak Container → Generate container...** (shortcut `G` then `N`) opens a
+**Scaletainer → Generate container...** (shortcut `G` then `N`) opens a
 panel with five tabs:
 
 1. **Dimensions (1:1)** — a *Standard size* picker with the common ISO boxes
@@ -105,7 +105,7 @@ shown under the buttons.
 
 ```json
 {
-  "generator": "NtrakContainer/config",
+  "generator": "Scaletainer/config",
   "config_version": 1,
   "name": "20 footer",
   "unit": "in",
@@ -114,7 +114,7 @@ shown under the buttons.
     "side_ribs": {"count": 24, "slope": 1.97, "ratio": 0.2, "height": 1.42},
     "scale_divider": 87.0, "min_feature_mm": 0.25, "include_mount_frame": true
   },
-  "export": {"directory": "~/Ntrak", "formats": ["stl", "3mf"],
+  "export": {"directory": "~/Scaletainer", "formats": ["stl", "3mf"],
              "separate_parts": false}
 }
 ```
@@ -134,17 +134,17 @@ shown under the buttons.
   scale* list when the file is loaded.
 
 The same format is available without the GUI through
-:mod:`ntrak_container.config` (`save` / `load` / `build` / `to_json`).
+:mod:`scaletainer.config` (`save` / `load` / `build` / `to_json`).
 
 ## Using the console
 
 ```python
 # freecadcmd
->>> from ntrak_container import tasks
+>>> from scaletainer import tasks
 >>> result = tasks.generate(
 ...     {"length": 14630.4, "width": 2590.8, "height": 2895.6,
 ...      "scale_divider": 87, "min_feature_mm": 0.25},
-...     "~/Ntrak", formats=("stl", "3mf"))
+...     "~/Scaletainer", formats=("stl", "3mf"))
 >>> print(result.text())
 ```
 
@@ -156,14 +156,14 @@ Configuration files work headless too — write one, then build straight from it
 
 ```python
 # freecadcmd
->>> from ntrak_container import commands, config
->>> config.save("~/Ntrak/box.json",
+>>> from scaletainer import commands, config
+>>> config.save("~/Scaletainer/box.json",
 ...             {"length": 14630.4, "width": 2590.8, "height": 2895.6,
 ...              "scale_divider": 87}, "mm",
-...             {"directory": "~/Ntrak", "formats": ["stl"],
+...             {"directory": "~/Scaletainer", "formats": ["stl"],
 ...              "separate_parts": False}, name="48 ft at HO")
-'/home/you/Ntrak/box.json'
->>> print(commands.generate_from_config("~/Ntrak/box.json").text())
+'/home/you/Scaletainer/box.json'
+>>> print(commands.generate_from_config("~/Scaletainer/box.json").text())
 ```
 
 `generate_from_config(path)` uses the file's folder, formats and parts option;
@@ -186,7 +186,7 @@ reported in the Preview tab and recorded in the `.json` sidecar.
 
 ## Output
 
-For scale `1:87` you get `Ntrak-168x30x33-1-87.*`:
+For scale `1:87` you get `Scaletainer-168x30x33-1-87.*`:
 
 | File | Contents |
 | --- | --- |

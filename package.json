@@ -1,8 +1,8 @@
 {
-  "name": "NtrakContainer",
+  "name": "Scaletainer",
   "comment": "Generate scaled transport containers (FCStd, STEP, STL, 3MF) from 1:1 dimensions",
   "version": "0.1.0",
-  "date": "2026-10-12",
+  "date": "2026-10-30",
   "repositorytype": "git",
   "url": "https://github.com/smellit/Ntrak",
   "tags": ["Container", "Railway", "Scale model", "Part", "3D printing"],

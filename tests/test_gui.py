@@ -26,9 +26,9 @@ class PanelTest(unittest.TestCase):
     def setUpClass(cls):
         os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
         cls.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
-        from ntrak_container import gui
+        from scaletainer import gui
 
-        cls.tmp = tempfile.mkdtemp(prefix="ntrak_gui_")
+        cls.tmp = tempfile.mkdtemp(prefix="scaletainer_gui_")
         cls.panel = gui.create_panel(cls.tmp)
 
     @classmethod
@@ -53,7 +53,7 @@ class PanelTest(unittest.TestCase):
         self.assertEqual(values["side_ribs"]["count"], 24)
 
     def test_preview_matches_derivation(self):
-        from ntrak_container.params import BuildConfig, ContainerParams, derive
+        from scaletainer.params import BuildConfig, ContainerParams, derive
 
         geom = derive(ContainerParams.reference(), BuildConfig(**{
             k: v for k, v in self.panel.input_values().items()
@@ -66,7 +66,7 @@ class PanelTest(unittest.TestCase):
         self.assertAlmostEqual(float(rows["Model length"].split()[0]), geom.length, places=3)
 
     def test_unit_change_preserves_model_size(self):
-        from ntrak_container.units import to_mm
+        from scaletainer.units import to_mm
 
         before = to_mm(self.panel._fields["length"].value(),
                        str(self.panel.unit_combo.currentData()))
@@ -164,7 +164,7 @@ class PanelTest(unittest.TestCase):
 
     def test_fresh_panel_opens_on_reference_size(self):
         """Startup must select the reference size without restore_defaults."""
-        from ntrak_container import gui
+        from scaletainer import gui
 
         fresh = gui.create_panel(self.tmp)
         try:
@@ -188,7 +188,7 @@ class PanelTest(unittest.TestCase):
 
     # ------------------------------------------------------------ config I/O
     def test_save_config_writes_the_panel(self):
-        from ntrak_container import config as config_io
+        from scaletainer import config as config_io
 
         self.panel.size_combo.setCurrentIndex(
             self.panel.size_combo.findText("20 ft dry (ISO 1AA)"))
@@ -246,7 +246,7 @@ class PanelTest(unittest.TestCase):
 
     def test_load_keeps_hidden_options(self):
         """A file carrying console-only toggles must not lose them."""
-        from ntrak_container import config as config_io, tasks
+        from scaletainer import config as config_io, tasks
 
         cfg = config_io.build(self.panel.input_values(), "mm",
                               name="no far door")
@@ -266,10 +266,10 @@ class PanelTest(unittest.TestCase):
 
     def test_load_accepts_generated_sidecar(self):
         """The .json the generator writes can be read back into the panel."""
-        from ntrak_container import config as config_io
+        from scaletainer import config as config_io
 
         cfg = config_io.build(self.panel.input_values(), "mm")
-        side = {"generator": "NtrakContainer", "unit": "mm",
+        side = {"generator": "Scaletainer", "unit": "mm",
                 "input_1to1": {k: v for k, v in cfg.values.items()
                                if k in config_io.LENGTH_KEYS
                                or k in config_io.RIB_KEYS
@@ -352,7 +352,7 @@ class PanelTest(unittest.TestCase):
 
     def test_out_of_range_value_is_reported(self):
         """Qt clamps silently, so the panel must say which field was limited."""
-        from ntrak_container import config as config_io
+        from scaletainer import config as config_io
 
         values = dict(self.panel.input_values())
         values["mount_frame_count"] = 999        # widget tops out at 50
@@ -378,8 +378,8 @@ class PanelTest(unittest.TestCase):
 
     def test_partial_file_loads_with_reference_defaults(self):
         """A hand-written file with only a few keys must not break the panel."""
-        from ntrak_container import config as config_io
-        from ntrak_container.params import ContainerParams
+        from scaletainer import config as config_io
+        from scaletainer.params import ContainerParams
 
         path = os.path.join(self.tmp, "partial.json")
         with open(path, "w", encoding="utf-8") as handle:
@@ -450,8 +450,8 @@ class PanelTest(unittest.TestCase):
         simulate a cancelled dialog.  ``_restore_dialogs`` undoes the patch.
         """
         cls = QtWidgets.QFileDialog
-        if not hasattr(cls, "_ntrak_originals"):
-            cls._ntrak_originals = (cls.getExistingDirectory,
+        if not hasattr(cls, "_scaletainer_originals"):
+            cls._scaletainer_originals = (cls.getExistingDirectory,
                                     cls.getSaveFileName, cls.getOpenFileName)
         answers = {"existing": existing, "save": save, "load": load}
         cls.getExistingDirectory = staticmethod(
@@ -464,9 +464,9 @@ class PanelTest(unittest.TestCase):
 
     def _restore_dialogs(self):
         cls = QtWidgets.QFileDialog
-        originals = cls._ntrak_originals
+        originals = cls._scaletainer_originals
         cls.getExistingDirectory, cls.getSaveFileName, cls.getOpenFileName = originals
-        del cls._ntrak_originals
+        del cls._scaletainer_originals
 
     def test_config_buttons_exist(self):
         """The Save/Load buttons are present; their slots are tested directly."""
@@ -477,7 +477,7 @@ class PanelTest(unittest.TestCase):
 
     def test_non_preset_scale_from_file_is_kept(self):
         """A scale outside the presets must not snap back to a preset."""
-        from ntrak_container import config as config_io
+        from scaletainer import config as config_io
 
         def write(divider):
             path = os.path.join(self.tmp, f"scale{divider:g}.json")
@@ -515,7 +515,7 @@ class PanelTest(unittest.TestCase):
         self.assertEqual(self.panel._hidden_options, {})
 
     def test_export_option_can_be_left_out_of_the_file(self):
-        from ntrak_container import config as config_io
+        from scaletainer import config as config_io
 
         self.panel.remember_export.setChecked(False)
         path = os.path.join(self.tmp, "values-only.json")
@@ -583,7 +583,7 @@ class CommandTest(unittest.TestCase):
         cls.app = QtWidgets.QApplication.instance() or QtWidgets.QApplication([])
 
     def test_command_resources_and_panel(self):
-        from ntrak_container import commands
+        from scaletainer import commands
 
         cmd = commands.GenerateCommand()
         resources = cmd.GetResources()

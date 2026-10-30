@@ -1,4 +1,4 @@
-"""GUI initialisation: install the "Ntrak Container" workbench and its menu.
+"""GUI initialisation: install the "Scaletainer" workbench and its menu.
 
 FreeCAD runs this file with *separate* globals and locals dictionaries and may
 pass a relative ``__file__``, so the add-on folder is located by testing
@@ -18,7 +18,7 @@ import FreeCADGui as Gui
 
 
 def _find_package_dir():
-    """Directory holding ``ntrak_container`` and ``resources``.
+    """Directory holding ``scaletainer`` and ``resources``.
 
     Tried in order: the folder of ``__file__`` (when it really is this file),
     the ``sys.path`` entries added by ``Init.py``, and the usual FreeCAD ``Mod``
@@ -34,7 +34,7 @@ def _find_package_dir():
     for flavour in (".var/app/org.freecad.FreeCAD/data", ".local/share", ".FreeCAD"):
         candidates.append(os.path.join(app_data, flavour, "FreeCAD", "Mod"))
     for folder in candidates:
-        if os.path.isdir(os.path.join(folder, "ntrak_container")):
+        if os.path.isdir(os.path.join(folder, "scaletainer")):
             return os.path.normpath(folder)
     return os.path.dirname(os.path.abspath(here)) if here else os.getcwd()
 
@@ -52,22 +52,22 @@ def _make_workbench(package_dir, gui, path_join):
     names this module imported; *package_dir* locates the icon.
     """
 
-    class NtrakContainerWorkbench(gui.Workbench):
-        MenuText = "Ntrak Container"
+    class ScaletainerWorkbench(gui.Workbench):
+        MenuText = "Scaletainer"
         ToolTip = "Generate scaled transport containers from 1:1 dimensions"
         Icon = path_join(package_dir, "resources", "container.svg")
 
         def Initialize(self):
-            from ntrak_container.commands import install
+            from scaletainer.commands import install
 
             install()
-            self.appendToolbar("Ntrak Container", ["Ntrak_Container_Generate"])
-            self.appendMenu("Ntrak", ["Ntrak_Container_Generate"])
+            self.appendToolbar("Scaletainer", ["Scaletainer_Generate"])
+            self.appendMenu("Scaletainer", ["Scaletainer_Generate"])
 
         def GetClassName(self):
             return "Gui::PythonWorkbench"
 
-    return NtrakContainerWorkbench
+    return ScaletainerWorkbench
 
 
 if hasattr(Gui, "addWorkbench") and hasattr(Gui, "Workbench"):

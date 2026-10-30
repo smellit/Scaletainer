@@ -1,4 +1,4 @@
-# Install, test and clean the Ntrak Container FreeCAD add-on.
+# Install, test and clean the Scaletainer FreeCAD add-on.
 #
 #   make install                    copy into the Flatpak Mod directory
 #   make link                       symlink instead (for development)
@@ -9,7 +9,7 @@
 #   make test-config                configuration file tests only (plain Python)
 
 SRC     := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
-NAME    := NtrakContainer
+NAME    := Scaletainer
 FREECAD ?= flatpak run --command=freecadcmd org.freecad.FreeCAD
 
 # Default target: the Flatpak user Mod directory.
@@ -17,7 +17,7 @@ DESTDIR ?= $(HOME)/.var/app/org.freecad.FreeCAD/data/FreeCAD/v1-1/Mod
 
 # The add-on lives at the repository root, so only these files are installed;
 # the git history and repository metadata stay out of the Mod directory.
-PAYLOAD := Init.py InitGui.py package.json README.md ntrak_container resources tests
+PAYLOAD := Init.py InitGui.py package.json README.md scaletainer resources tests
 
 .PHONY: install uninstall link test test-params test-config lint
 

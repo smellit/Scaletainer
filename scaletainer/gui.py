@@ -2,12 +2,12 @@ r"""PySide panel for the container generator.
 
 The panel collects **1:1** dimensions in the unit of your choice plus the
 modelling scale, shows the derived scale-space values, and writes the files.
-It calls the same :func:`ntrak_container.tasks.generate` the command line uses, so the
+It calls the same :func:`scaletainer.tasks.generate` the command line uses, so the
 preview and the result can never disagree.
 
 A whole panel state (dimensions, corrugation, scale, options and optionally the
 output settings) can be stored in a JSON file and read back with
-:mod:`ntrak_container.config`.
+:mod:`scaletainer.config`.
 """
 
 from __future__ import annotations
@@ -126,7 +126,7 @@ class ContainerPanel(QtWidgets.QWidget):
         self._loading = False            # guards against size/combo feedback loops
         self._fields: dict[str, QtWidgets.QDoubleSpinBox] = {}
         self._rib_fields: dict[str, dict[str, QtWidgets.QWidget]] = {}
-        self.setWindowTitle("Ntrak transport container")
+        self.setWindowTitle("Scaletainer")
         self.setMinimumWidth(580)
         self._preview: tasks.Preview | None = None
         self._stem: str | None = None
@@ -137,7 +137,7 @@ class ContainerPanel(QtWidgets.QWidget):
         self._hidden_options: dict[str, bool] = {}
         #: divider of a scale a file added to the preset list, if any
         self._file_scale: float | None = None
-        self._build_ui(default_directory or os.path.expanduser("~/Ntrak"))
+        self._build_ui(default_directory or os.path.expanduser("~/Scaletainer"))
         self._refresh_preview()
 
     # ------------------------------------------------------------------ UI
@@ -377,7 +377,7 @@ class ContainerPanel(QtWidgets.QWidget):
         return float(self.scale_combo.currentData())
 
     def input_values(self) -> dict:
-        """Panel content as the plain dict :mod:`ntrak_container.tasks` expects."""
+        """Panel content as the plain dict :mod:`scaletainer.tasks` expects."""
         values = {name: float(box.value()) for name, box in self._fields.items()}
         for name, fields in self._rib_fields.items():
             values[name] = {

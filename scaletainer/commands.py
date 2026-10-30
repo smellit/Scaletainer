@@ -1,6 +1,6 @@
 """Workbench commands and the console entry point.
 
-``Ntrak_Container_Generate`` opens the panel.  :func:`generate_cli` does the
+``Scaletainer_Generate`` opens the panel.  :func:`generate_cli` does the
 same job without any Qt, which is what ``freecadcmd`` and the test suite use,
 and :func:`generate_from_config` builds straight from a saved configuration
 file.
@@ -13,10 +13,10 @@ import os
 from . import config
 from . import tasks
 
-#: default output folder: the user's home directory unless NTRAK_OUTPUT says so
-DEFAULT_OUTPUT = os.environ.get("NTRAK_OUTPUT") or os.path.expanduser("~/Ntrak")
+#: default output folder: the user's home directory unless SCALETAINTER_OUTPUT says so
+DEFAULT_OUTPUT = os.environ.get("SCALETAINTER_OUTPUT") or os.path.expanduser("~/Scaletainer")
 
-_COMMAND_ID = "Ntrak_Container_Generate"
+_COMMAND_ID = "Scaletainer_Generate"
 _panel = None
 
 
@@ -40,7 +40,7 @@ def generate_from_config(path: str, directory: str | None = None, *,
     The file's own output folder, formats and per-component option are used
     unless *directory* overrides the folder.
 
-    >>> generate_from_config("~/Ntrak/container-14630x2591x2896-1-160.json")
+    >>> generate_from_config("~/Scaletainer/container-14630x2591x2896-1-160.json")
     """
     cfg = config.load(path)
     export = cfg.export

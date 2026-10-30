@@ -46,9 +46,9 @@ def safe_name(text: str) -> str:
 
 def default_stem(params: ContainerParams, cfg: BuildConfig,
                  geom: ScaledGeometry | None = None) -> str:
-    """Name carrying the key inputs, e.g. ``Ntrak-90x16x18-1-160``."""
+    """Name carrying the key inputs, e.g. ``Scaletainer-90x16x18-1-160``."""
     geom = geom or derive(params, cfg)
-    return safe_name(f"Ntrak-{geom.length:.0f}x{geom.width:.0f}x{geom.height:.0f}"
+    return safe_name(f"Scaletainer-{geom.length:.0f}x{geom.width:.0f}x{geom.height:.0f}"
                      f"-1-{cfg.scale_divider:g}")
 
 
@@ -96,7 +96,7 @@ def write_params(path: str, params: ContainerParams, cfg: BuildConfig,
                  geom: ScaledGeometry, components=None) -> str:
     """Sidecar with the exact inputs, derived values and any adjustments."""
     payload = {
-        "generator": "NtrakContainer",
+        "generator": "Scaletainer",
         "unit": "mm",
         "scale": f"1:{cfg.scale_divider:g}",
         "input_1to1": params.to_dict(),
@@ -151,7 +151,7 @@ def build_document(params: ContainerParams, cfg: BuildConfig, *,
         include_door=cfg.include_door_side,
         include_far_door=cfg.include_far_door,
     )
-    name = group_label or f"Ntrak container 1-{cfg.scale_divider:g}"
+    name = group_label or f"Scaletainer 1-{cfg.scale_divider:g}"
     doc = App.newDocument(safe_name(name))
     objects = builder.add_to_document(doc, components, group_label=name)
     return doc, components, objects, geom

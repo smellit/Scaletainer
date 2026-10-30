@@ -16,14 +16,14 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import FreeCAD as App
 
-from ntrak_container import exporter
-from ntrak_container.params import BuildConfig, ContainerParams, derive
+from scaletainer import exporter
+from scaletainer.params import BuildConfig, ContainerParams, derive
 
 
 class ExportTest(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.tmp = tempfile.mkdtemp(prefix="ntrak_test_")
+        cls.tmp = tempfile.mkdtemp(prefix="scaletainer_test_")
         cls.params = ContainerParams.reference()
         cls.cfg = BuildConfig(scale_divider=87.0)
         cls.result = exporter.export_all(cls.params, cls.cfg, cls.tmp,
@@ -98,8 +98,8 @@ class ExportTest(unittest.TestCase):
         self.assertEqual(exporter.safe_name("///"), "container")
 
     def test_sidecar_loads_as_config(self):
-        """The written sidecar is a valid input for ntrak_container.config."""
-        from ntrak_container import config as config_io
+        """The written sidecar is a valid input for scaletainer.config."""
+        from scaletainer import config as config_io
 
         path = os.path.join(self.tmp, f"{self.result.stem}.json")
         cfg = config_io.load(path)
@@ -109,7 +109,7 @@ class ExportTest(unittest.TestCase):
         self.assertEqual(cfg.values["side_ribs"]["count"],
                          ContainerParams.reference().side_ribs.count)
         # and it feeds tasks unchanged
-        from ntrak_container import tasks
+        from scaletainer import tasks
 
         built = tasks.build_config(cfg.values)
         self.assertTrue(built.include_mount_frame)
@@ -120,13 +120,13 @@ class ConfigGenerateTest(unittest.TestCase):
     """commands.generate_from_config builds straight from a saved file."""
 
     def setUp(self):
-        self.tmp = tempfile.mkdtemp(prefix="ntrak_cfggen_")
+        self.tmp = tempfile.mkdtemp(prefix="scaletainer_cfggen_")
 
     def tearDown(self):
         shutil.rmtree(self.tmp, ignore_errors=True)
 
     def _config_file(self, directory=None):
-        from ntrak_container import config as config_io
+        from scaletainer import config as config_io
 
         p = ContainerParams.reference()
         values = {"length": p.length, "width": p.width, "height": p.height,
@@ -139,16 +139,16 @@ class ConfigGenerateTest(unittest.TestCase):
                               export, name="probe")
 
     def test_generates_from_file(self):
-        from ntrak_container import commands
+        from scaletainer import commands
 
         result = commands.generate_from_config(self._config_file(),
                                                progress=lambda m: None)
         stl = os.path.join(self.tmp, result.stem + ".stl")
         self.assertTrue(os.path.isfile(stl))
-        self.assertEqual(result.stem, "Ntrak-168x30x33-1-87")
+        self.assertEqual(result.stem, "Scaletainer-168x30x33-1-87")
 
     def test_directory_argument_overrides_the_file(self):
-        from ntrak_container import commands
+        from scaletainer import commands
 
         override = os.path.join(self.tmp, "elsewhere")
         result = commands.generate_from_config(self._config_file(), override,

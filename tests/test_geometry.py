@@ -16,8 +16,8 @@ import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from ntrak_container import builder
-from ntrak_container.params import BuildConfig, ContainerParams, derive
+from scaletainer import builder
+from scaletainer.params import BuildConfig, ContainerParams, derive
 
 #: reference ground truth at 1:160, measured from the original hand-modelled container
 REFERENCE = {
@@ -205,7 +205,7 @@ class DocumentTest(unittest.TestCase):
         import FreeCAD as App
 
         geom, parts = build()
-        doc = App.newDocument("ntrak_test")
+        doc = App.newDocument("scaletainer_test")
         try:
             objects = builder.add_to_document(doc, parts, group_label="Container")
             self.assertEqual(len(objects), len(parts))
