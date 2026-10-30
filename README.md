@@ -1,265 +1,268 @@
-# Scaletainer — FreeCAD add-on
+# Scaletainer — scaled transport containers for FreeCAD
 
-Generate a corrugated transport container (ISO box / tank-tainer style) at any
-modelling scale from **1:1 dimensions**. Type the real size of the container,
-pick the scale — `1:87` (HO), `1:160` (N) or any other preset (the console
-accepts any divider) — and the add-on writes
-FreeCAD, STEP, STL and 3MF files.
+Scaletainer builds a corrugated freight container (ISO box / tank-tainer style)
+from its **real full-size dimensions**. You type the container's actual length,
+width and height, choose a modelling scale such as `1:87` (HO) or `1:160` (N),
+and the workbench produces print-ready files: FreeCAD, STEP, STL and 3MF.
 
-The generator is fully scripted: **no spreadsheet object is created in the
-document**. All parameter maths runs in plain Python, and the output is plain
-`Part` geometry, which keeps the files small and print-ready.
+You do not need to model anything, and you do not need any Python knowledge.
+Everything happens in a panel with ordinary input fields.
 
-## Install
+* **Works with FreeCAD 1.0 or newer** (the add-on needs FreeCAD 1.x).
+* **Windows, Linux and macOS** — the add-on is pure Python, nothing to compile.
+* The result is a clean, solid model with one part per component, sitting on the
+  build plate so it can be sliced straight away.
 
-FreeCAD 1.x discovers add-ons in its user `Mod` directory. For the Flatpak
-build:
+---
 
-```sh
-make install            # copy into ~/.var/app/org.freecad.FreeCAD/data/FreeCAD/v1-1/Mod
-make link               # or symlink, convenient while developing
-```
+## 1. Install
 
-For an AppImage / system package, install into its own Mod directory:
+### Option A — the Addon Manager (recommended, all systems)
 
-```sh
-make install DESTDIR=~/.local/share/FreeCAD/Mod
-```
+1. Start FreeCAD.
+2. Open the **Addon Manager** from the **Tools** menu.
+3. Select the **Workbenches** tab.
+4. Find **Scaletainer** in the list and install it. If the add-on is not in the
+   catalogue yet, install it manually with [option B](#option-b--copy-the-folder-yourself)
+   instead.
+5. **Close FreeCAD completely and start it again.** This is not optional —
+   FreeCAD only looks for add-ons while it starts up.
 
-Then restart FreeCAD and pick the **Scaletainer** workbench from the
-workbench selector. `make uninstall` removes the installed copy again,
-`make test` runs the headless test suite and `make test-params` the parameter
-tests that need no FreeCAD at all.
+### Option B — copy the folder yourself
 
-Alternatively use FreeCAD's Addon Manager and point it at this repository, or
-clone it straight into the `Mod` directory under the add-on name:
+Download the repository as a ZIP from
+[github.com/smellit/Ntrak](https://github.com/smellit/Ntrak)
+(**Code → Download ZIP**), unzip it, and copy the resulting folder into your
+FreeCAD `Mod` folder, renaming it to **`Scaletainer`**. The folder name matters.
 
-```sh
-git clone https://github.com/smellit/Ntrak.git \
-  ~/.var/app/org.freecad.FreeCAD/data/FreeCAD/v1-1/Mod/Scaletainer
-```
+Where is the `Mod` folder?
 
-Whichever way you install it, `Init.py`, `InitGui.py`, `package.json`,
-`scaletainer/` and `resources/` need to stay together, and the folder in
-`Mod` must be named `Scaletainer`.
-
-### Troubleshooting
-
-* **Workbench not in the list** — FreeCAD scans `Mod` at startup, so a full
-  restart is required after installing or updating. Check that
-  `Mod/Scaletainer/InitGui.py` exists and that the folder matches the name
-  in `package.json`.
-* **Verify the install from a terminal** — start FreeCAD from a shell and look
-  for a line reading `During initialization the error ... occurred in
-  .../Scaletainer/InitGui.py`; FreeCAD prints it when an add-on fails to
-  load. `make test` includes a regression test for the workbench registration.
-* **Console check** — `freecadcmd` should accept
-  `from scaletainer import tasks` without errors; if it does not, the
-  add-on folder is not on the FreeCAD `Mod` path.
-
-## Using the GUI
-
-**Scaletainer → Generate container...** (shortcut `G` then `N`) opens a
-panel with five tabs:
-
-1. **Dimensions (1:1)** — a *Standard size* picker with the common ISO boxes
-   (20 ft dry / high cube / reefer, 40 ft dry / high cube, 45 ft high cube, the
-   48 ft reference container and a 53 ft domestic) plus the real full-size
-   measurements: overall length, width, height, end-frame/corner-fitting width,
-   door border width, roof and floor plate thickness, the mounting rib
-   dimensions, and the far-door hardware (backing plate, locking rod width,
-   centre seam, hinge/handle size).
-   Choosing a standard size fills the length, width and height; editing any of
-   those three by hand switches the picker back to `-- custom --`, while the
-   other fields keep their values. The panel opens with the 48 ft reference
-   size already selected. Changing the input unit re-expresses these
-   fields — and keeps the size selection — without changing the model.
-
-   The dimension fields show **whole numbers with no up/down arrows**. They
-   still store the exact value behind the scenes, so the 48 ft reference size
-   reads `14630 mm` on screen but remains `14630.4 mm` for the generator; the
-   reference model is therefore still reproduced bit-for-bit.
-2. **Corrugation** — for each of the four rib sets (side wall, roof, floor,
-   door end): rib count, slope width, relief depth, and the share of the flat
-   span that becomes the crest.
-3. **Scale & options** — input unit (mm, cm, m, in, ft), the modelling scale
-   (preset list; a scale outside the presets such as `1:96` can be stored in a
-   configuration file and is then added to the list, or passed as
-   `scale_divider` in the console), the two printability safety nets described
-   below, and whether to build the mounting frame ribs.  Both door ends are
-   always built.
-4. **Preview** — the derived scale-space numbers (model size, wall depth, rib
-   pitch, mount rib size) plus a log of every adjustment applied.
-5. **Generate** — output folder, formats, and the button.
-
-Defaults reproduce the 48 ft ISO reference container at 1:160 — the size the
-generator ships as `ContainerParams.reference()`.
-
-## Saving and loading configurations
-
-Above the tabs, **Save config...** / **Load config...** write and read a plain
-JSON file holding everything in the panel: the 1:1 dimensions, the corrugation
-patterns, the scale, the safety nets, the option toggles and the input unit.
-An optional *name* goes in the file too, and the path of the loaded file is
-shown under the buttons.
-
-```json
-{
-  "generator": "Scaletainer/config",
-  "config_version": 1,
-  "name": "20 footer",
-  "unit": "in",
-  "values": {
-    "length": 238.5, "width": 96.0, "height": 102.0,
-    "side_ribs": {"count": 24, "slope": 1.97, "ratio": 0.2, "height": 1.42},
-    "scale_divider": 87.0, "min_feature_mm": 0.25, "include_mount_frame": true
-  },
-  "export": {"directory": "~/Scaletainer", "formats": ["stl", "3mf"],
-             "separate_parts": false}
-}
-```
-
-* Dimensions are stored in the file's own `unit`, so loading a file written in
-  inches switches the panel to inches instead of rescaling the numbers.
-* **Save output folder, formats and parts option in config files** on the
-  Generate tab decides whether the `export` block is written. With it off, a
-  file carries only the design, and loading it leaves your current output
-  settings alone.
-* Files are validated on load: unknown keys, non-integer rib counts, unknown
-  formats or a file from a newer add-on version are reported in the status line
-  and the panel is left untouched.
-* The `.json` sidecar the generator writes next to each model is accepted too,
-  so a finished container can be opened again and tweaked.
-* A scale that is not one of the presets is kept: it is added to the *Modelling
-  scale* list when the file is loaded.
-
-The same format is available without the GUI through
-:mod:`scaletainer.config` (`save` / `load` / `build` / `to_json`).
-
-## Using the console
-
-```python
-# freecadcmd
->>> from scaletainer import tasks
->>> result = tasks.generate(
-...     {"length": 14630.4, "width": 2590.8, "height": 2895.6,
-...      "scale_divider": 87, "min_feature_mm": 0.25},
-...     "~/Scaletainer", formats=("stl", "3mf"))
->>> print(result.text())
-```
-
-All values are 1:1 millimetres unless `unit=` says otherwise. Anything you leave
-out keeps the reference value. `tasks.preview(values)` returns the derived
-numbers without building geometry.
-
-Configuration files work headless too — write one, then build straight from it:
-
-```python
-# freecadcmd
->>> from scaletainer import commands, config
->>> config.save("~/Scaletainer/box.json",
-...             {"length": 14630.4, "width": 2590.8, "height": 2895.6,
-...              "scale_divider": 87}, "mm",
-...             {"directory": "~/Scaletainer", "formats": ["stl"],
-...              "separate_parts": False}, name="48 ft at HO")
-'/home/you/Scaletainer/box.json'
->>> print(commands.generate_from_config("~/Scaletainer/box.json").text())
-```
-
-`generate_from_config(path)` uses the file's folder, formats and parts option;
-pass a second argument to send the output somewhere else. `config.load(path)`
-returns the validated `values` dict if you would rather call `tasks.generate`
-yourself.
-
-## Printability at small scales
-
-At 1:160 a 48 ft container is only 91 mm long, so many 1:1 features become
-thinner than a nozzle. Two optional knobs (both `0` = off by default, so the
-reference model is reproduced exactly):
-
-* **Minimum feature size** — every scaled length below it is raised to it.
-* **Minimum rib pitch** — ribs are dropped until the pitch reaches it.
-
-When a raised profile no longer fits the corrugated span, the rib count is
-reduced instead of letting the corrugation run past the wall; each change is
-reported in the Preview tab and recorded in the `.json` sidecar.
-
-## Output
-
-For scale `1:87` you get `Scaletainer-168x30x33-1-87.*`:
-
-| File | Contents |
+| System | Path |
 | --- | --- |
-| `.FCStd` | one `Part::Feature` per component inside a group, no spreadsheets |
-| `.step` | the same components as solids |
-| `.stl`, `.3mf` | meshed assembly |
-| `.json` | inputs, derived values, adjustments, per-part volume and size |
-| `...-parts/` | one STL/3MF/STEP per component for multi-part prints |
+| **Windows** | `C:\Users\<you>\AppData\Roaming\FreeCAD\v1-1\Mod` |
+| **macOS** | `~/Library/Application Support/FreeCAD/v1-1/Mod` |
+| **Linux** (AppImage, deb, system package) | `~/.local/share/FreeCAD/v1-1/Mod` |
+| **Linux** (Flatpak) | `~/.var/app/org.freecad.FreeCAD/data/FreeCAD/v1-1/Mod` |
 
-Components: `SideWallRight`, `SideWallLeft`, `Roof`, `Floor`, `MountFrame`
-(the ribs that hold the container), `DoorSide` (the ribbed end) and `FarDoor`
-(the realistic double-door end). The model sits in the first octant with the
-floor ribs at `Z = 0`, so it can be sliced without moving it.
+`AppData` and `Library` are hidden by default. On Windows type `%APPDATA%` into
+the Explorer address bar; on macOS use **Go → Go to Folder…** in the Finder.
 
-## The far door end
+The `v1-1` part is your FreeCAD version — FreeCAD 1.0 uses `v1-0`, so if the
+path above does not exist, look for the similar folder next to it. To see the
+exact folder for your installation, start FreeCAD, open **View → Panels →
+Python console** and enter:
 
-The original hand-modelled container only had one (ribbed) end, leaving the
-other side open. The
-`FarDoor` part closes it with a realistic ISO box door: two leaves meeting at a
-recessed centre seam, each framed by raised stiles and rails, with two vertical
-locking rods and cam-keeper blocks per leaf, hinge blocks down the outer edges
-and corner castings at the four corners.
-
-Two design rules make it safe:
-
-* **It never exceeds the overall length.** The door fills exactly the band
-  between the corrugated shell (`overall_length`) and the nominal 1:1 `length`,
-  so its outer face is flush with the container's real end and the model's
-  bounding box is always `length` — never more.
-* **It is raised relief on a solid backing plate**, not thin protrusions, so it
-  survives a fine nozzle. At 1:160 the backing plate is ~0.30 mm and the raised
-  detail ~0.58 mm. The `min_feature_mm` safety net raises anything too thin for
-  a coarser nozzle; the door detail then simply reads as a flat panel.
-
-Toggle it off with `include_far_door=False` in the console (the panel always
-builds both door ends).
-
-The hand-modelled reference used separate PartDesign clones for each mounting
-rib; here the three mounting ribs are one compound part, which is simpler and
-print-ready.
-
-## How the geometry is derived
-
-The generator reproduces the reference design's construction:
-
-* `inner_length = length - 2 * frame_size` — the corrugated span.
-* Side wall depth `= 2 * frame_size`, plate `= depth - rib height`, so the
-  corrugation is flush with the end frames.
-* `pitch = span / count / scale`, `flat = pitch - 2 * slope`, split into crest
-  (`flat * ratio`) and valley (`flat * (1 - ratio)`).
-* Mounting ribs span `width - 2 * wall_depth` and are spread evenly over the
-  corrugated span.
-
-Coordinate system: `X` = length (door end at `X = 0`), `Y` = width crest plane
-to crest plane, `Z` = height with the floor crest plane at `Z = 0`.
-
-## Tests
-
-```sh
-make test-params    # parameter maths only, plain Python, no FreeCAD needed
-make test           # all 124 tests: parameters, geometry, export, GUI, workbench
+```python
+import FreeCAD; FreeCAD.getUserAppDataDir()
 ```
 
-`make test` runs `tests/run_tests.py` headless (`freecadcmd`) with an offscreen
-Qt platform, so it needs a display-free environment. The workbench test stubs
-the `FreeCADGui` workbench API, which only exists in a GUI session.
+The printed path is where the `Mod` folder belongs (create `Mod` if it is not
+there yet).
 
-`tests/test_geometry.py` pins the 1:160 build against the volumes and bounding
-boxes measured from the original hand-modelled reference container — side walls
-2189.6384 mm³, roof 1334.8501 mm³, floor 1242.9017 mm³, three mounting ribs
-3 × 773.28 mm³, door end 163.4849 mm³.
+After copying, **restart FreeCAD**.
 
-Known difference: the reference door-end sketch had self-overlapping wires,
-which inflate its volume slightly. The generated door
-end is modelled cleanly (border ring plus ribbed slab) and matches the same
-total volume.
+### Check it worked
+
+In the workbench selector dropdown (the list near the top of the window that
+normally shows *Part*, *Sketcher*, *Assembly*, …) there should now be a
+**Scaletainer** entry. Pick it: a **Scaletainer** menu and toolbar appear.
+
+If it is missing, see [Troubleshooting](#6-troubleshooting).
+
+---
+
+## 2. Generate your first container
+
+1. Choose the **Scaletainer** workbench.
+2. Click **Scaletainer → Generate container…** (toolbar icon or the shortcut
+   `G` then `N`).
+3. The panel opens with a real 48 ft container already filled in. Pick your
+   **Modelling scale** on the **Scale & options** tab — `1:160 (N)` or
+   `1:87 (HO)`.
+4. Go to the **Generate** tab, choose an **Output folder**, and press
+   **Generate container**.
+5. A message in the status line lists the written files. Open the folder and
+   load the `.FCStd` into FreeCAD, or the `.stl` / `.3mf` into your slicer.
+
+That is all there is to it. The rest of this page explains the settings.
+
+---
+
+## 3. The panel, tab by tab
+
+The window is called **Scaletainer** and has five tabs. Above them sit
+**Save config…**, **Load config…** and a name field (see
+[section 4](#4-saving-and-loading-a-design)).
+
+### Dimensions (1:1)
+
+Everything here is the **real, full-size** measurement of the container — not
+the scaled-down model size. Scaletainer divides it by your scale for you.
+
+* **Standard size** — a dropdown of the common boxes: 20 ft dry, 20 ft high
+  cube, 20 ft reefer, 40 ft dry, 40 ft high cube, 45 ft high cube, the 48 ft
+  reference container and a 53 ft domestic box. Choosing one fills in length,
+  width and height.
+* **Overall length / width / height** — the outside dimensions. If you edit any
+  of these three by hand, the dropdown switches to `-- custom / enter manually
+  --` so you can see you left the standard sizes; the other fields keep their
+  values.
+* **End frame / corner fitting width** — the thickness of the corner posts and
+  fittings at each end. This is what the corrugated wall panels sit between.
+* **Door end border width** — the frame around the ribbed door end.
+* **Roof plate / Floor plate thickness** — the sheet metal of roof and floor.
+* **Mount rib depth / wall thickness / corner chamfer** — the three ribs on the
+  underside that a truck chassis, spine or twist-lock actually grips.
+* **Far door backing plate / locking rod width / centre seam width / hinge,
+  handle & casting size** — the details of the realistic double-door end: the
+  solid plate the door relief sits on, the two vertical locking rods per leaf,
+  the recessed seam where the leaves meet, and the size of the hinge blocks,
+  handles and corner castings.
+
+The fields show **whole numbers** and have no up/down arrows, which keeps them
+readable. The exact value is still used behind the scenes: the 48 ft reference
+size shows `14630 mm` but stays `14630.4 mm` in the generator.
+
+### Corrugation
+
+Four groups — **Side wall corrugation**, **Roof corrugation**, **Floor
+corrugation**, **Door end ribs**. Each has the same four settings, and they
+describe the repeating wave profile of the sheet:
+
+| Setting | Meaning |
+| --- | --- |
+| **Rib count** | How many corrugation waves fit along that surface. More ribs = finer, busier texture. |
+| **Slope width** | How wide the slanted part of each wave is. Larger values make softer, rounder-looking waves; small values make crisp, sharply creased ribs. |
+| **Relief depth** | How deep the wave sticks out — the thickness of the corrugation itself. |
+| **Crest share of flat span** | Each wave has a flat top (crest) and a flat bottom (valley). This splits the leftover flat distance between them: `0.5` gives equal crest and valley, higher values give wider flat tops and narrower valleys. |
+
+The side walls are the ones that decide the look of the model, so start there.
+
+### Scale & options
+
+* **Input unit** — mm, cm, m, in or ft. This only changes how you *type* the
+  dimensions on the Dimensions tab. Switching unit rewrites the fields in the
+  new unit **without changing the size of the model**, so you can go from
+  millimetres to feet and back freely.
+* **Modelling scale** — `1:22.5 (G / I)`, `1:32`, `1:43.5 (OO)`, `1:48 (O)`,
+  `1:64 (S)`, `1:72`, `1:76 (EM)`, `1:87 (HO)`, `1:100`, `1:120 (TT)`, `1:150`,
+  `1:160 (N)`, `1:180 (Z)` and `1:225 (Zm)`. A scale that is not in the list can
+  be restored from a saved configuration file, which then adds it to the
+  dropdown.
+* **Minimum feature size** — a safety net for 3D printing. Any part of the model
+  thinner than this is made thicker. Leave it at `0` for the exact proportions;
+  set it to roughly your printer nozzle width (e.g. `0.2` or `0.25`) when
+  printing very small. See [section 5](#5-printing-the-model).
+* **Minimum rib pitch** — the second safety net: ribs are dropped one by one
+  until the distance between them reaches this value, instead of leaving
+  impossibly fine texture.
+
+Both of those are measured in **millimetres of the finished model** and always
+stay in millimetres, whatever input unit you picked above.
+* **Build mounting frame ribs** — turn off to skip the underframe ribs (a
+  lighter file if you only ever show the box from above).
+* **Mounting ribs** — how many of those ribs to place.
+
+Both door ends are always built.
+
+### Preview
+
+Read-only, and the most useful tab for checking a design: a table of the
+**Derived value** and its **Scale space** result — the finished model length,
+width and height, wall depth, rib pitch, mount rib size and so on. Below the
+table, a log lists every automatic adjustment, for example
+`side_ribs: 24 -> 20 ribs`.
+
+If a field is impossible, the status line at the bottom says so and nothing is
+generated.
+
+### Generate
+
+* **Output folder** — where the files go, with a **Browse…** button.
+* **Formats** — tick any combination. FreeCAD document and STL are ticked by
+  default; untick what you do not need to save time.
+  * **FreeCAD document (.FCStd)** — one object per component, inside a group.
+  * **STEP (.step)** — for CAD programs and CNC work.
+  * **STL (.stl)** — for slicing.
+  * **3MF (.3mf)** — modern slicer format, carries colours and units.
+* **Also write one file per component** — adds a `...-parts` subfolder with a
+  separate STL / 3MF / STEP for each piece, for printing parts individually.
+* **Save output folder, formats and parts option in config files** — on, a saved
+  configuration also stores these settings; off, a file carries only the design
+  and loading it leaves your current output settings alone.
+* **Generate container** — writes the files.
+
+---
+
+## 4. Saving and loading a design
+
+**Save config…** writes a small `.json` file holding everything in the panel:
+dimensions, corrugation, scale, safety nets, options, input unit, and an
+optional **name**. **Load config…** refills the panel from such a file.
+
+This is how you keep a fleet: save one file per container type, then load and
+tweak it for a variant. A few things worth knowing:
+
+* Dimensions are stored in the file's own unit, so loading a file written in
+  inches switches the panel to inches rather than rescaling the numbers.
+* A scale outside the preset list is kept and added to the dropdown.
+* Files are checked when loaded. An unknown setting, a rib count with a decimal
+  in it or a file from a newer version of the add-on is reported in the status
+  line, and your panel is left untouched.
+* The `.json` file Scaletainer writes **next to each model** can be loaded back
+  into the panel too, so a finished container can be reopened and adjusted.
+
+---
+
+## 5. Printing the model
+
+At `1:160` a 48 ft container is only about 91 mm long, so many real features
+end up thinner than a printer nozzle. The two safety nets on the
+**Scale & options** tab exist for this:
+
+* **Minimum feature size** raises anything too thin.
+* **Minimum rib pitch** removes ribs that would be too close together.
+
+Both are `0` (off) by default, so the model matches reality exactly until you
+ask otherwise. When raising a profile would make the corrugation run past the
+wall, Scaletainer reduces the rib count instead — always reported in the
+**Preview** tab and recorded in the `.json` file, so nothing is changed behind
+your back.
+
+The model sits in the first octant with the floor ribs at `Z = 0`: drop the STL
+or 3MF into your slicer and it is already resting on the plate.
+
+Components written: `SideWallRight`, `SideWallLeft`, `Roof`, `Floor`,
+`MountFrame` (the gripping ribs), `DoorSide` (the ribbed end) and `FarDoor`
+(the realistic double-door end with locking rods, hinges and corner castings).
+
+---
+
+## 6. Troubleshooting
+
+* **No Scaletainer in the workbench list** — quit FreeCAD fully and start it
+  again; the list is only built at startup. Then confirm the folder really is
+  `Mod/Scaletainer` (not `Mod/Ntrak-main` or `Mod/Ntrak/Scaletainer`) and that
+  `Scaletainer/InitGui.py` is inside it.
+* **The folder is right but nothing appears** — a second FreeCAD version on the
+  same machine may use a different `Mod` folder. Check the exact path with the
+  `FreeCAD.getUserAppDataDir()` line from [section 1](#option-b--copy-the-folder-yourself).
+* **The panel shows an error in the status line** — it is telling you which
+  field is impossible (usually a rib count too high for the size, or a dimension
+  of zero). Fix that field; nothing bad has been written.
+* **The files are not where you expected** — the status line after generating
+  lists the full paths, and the `.json` beside them repeats the folder.
+* **A generated model looks empty in the 3D view** — at `1:160` it is small;
+  press **View → Standard views → Fit all** (shortcut `V` then `F`) to zoom to
+  it.
+
+---
+
+## 7. Licence and links
+
+* Licence: **GNU LGPL 2.1 or later** — see [LICENSE.md](LICENSE.md).
+* Source and issue tracker: [github.com/smellit/Ntrak](https://github.com/smellit/Ntrak)
+* Author: smellit
+* Running headless in a terminal, the file formats, the geometry maths and the
+  test suite are documented for developers and scripters in
+  **[DEVELOPER.md](DEVELOPER.md)**.

@@ -5,7 +5,7 @@ Run headless with::
     flatpak run --command=freecadcmd org.freecad.FreeCAD tests/test_geometry.py
 
 The expected volumes and bounding boxes come from the original hand-modelled
-reference container (see README).  The generated geometry is translated and
+reference container (see DEVELOPER.md).  The generated geometry is translated and
 mirrored relative to it, so the comparison uses sizes and volumes, not
 positions.
 """

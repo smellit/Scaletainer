@@ -17,7 +17,7 @@ DESTDIR ?= $(HOME)/.var/app/org.freecad.FreeCAD/data/FreeCAD/v1-1/Mod
 
 # The add-on lives at the repository root, so only these files are installed;
 # the git history and repository metadata stay out of the Mod directory.
-PAYLOAD := Init.py InitGui.py package.json README.md scaletainer resources tests
+PAYLOAD := Init.py InitGui.py package.json README.md DEVELOPER.md LICENSE.md scaletainer resources tests
 
 .PHONY: install uninstall link test test-params test-config lint
 
