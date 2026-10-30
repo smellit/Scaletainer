@@ -13,6 +13,11 @@ Everything happens in a panel with ordinary input fields.
 * The result is a clean, solid model with one part per component, sitting on the
   build plate so it can be sliced straight away.
 
+**See it in one minute** — type the 1:1 dimensions, pick `1:160 (N)` and press
+*Generate container*:
+
+[![Scaletainer demo: generating a scaled container in FreeCAD](https://i.ytimg.com/vi/sXaBZSGZ61g/maxresdefault.jpg)](https://youtu.be/sXaBZSGZ61g)
+
 ---
 
 ## 1. Install
@@ -262,6 +267,7 @@ Components written: `SideWallRight`, `SideWallLeft`, `Roof`, `Floor`,
 
 * Licence: **GNU LGPL 2.1 or later** — see [LICENSE.md](LICENSE.md).
 * Source and issue tracker: [github.com/smellit/Ntrak](https://github.com/smellit/Ntrak)
+* Demo video: [youtu.be/sXaBZSGZ61g](https://youtu.be/sXaBZSGZ61g)
 * Author: smellit
 * Running headless in a terminal, the file formats, the geometry maths and the
   test suite are documented for developers and scripters in
