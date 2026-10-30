@@ -15,17 +15,21 @@ FREECAD ?= flatpak run --command=freecadcmd org.freecad.FreeCAD
 # Default target: the Flatpak user Mod directory.
 DESTDIR ?= $(HOME)/.var/app/org.freecad.FreeCAD/data/FreeCAD/v1-1/Mod
 
+# The add-on lives at the repository root, so only these files are installed;
+# the git history and repository metadata stay out of the Mod directory.
+PAYLOAD := Init.py InitGui.py package.json README.md ntrak_container resources tests
+
 .PHONY: install uninstall link test test-params test-config lint
 
 install:
 	@mkdir -p "$(DESTDIR)"
-	@if [ "$$(readlink -f "$(DESTDIR)/$(NAME)" 2>/dev/null)" = "$(SRC)" ]; then \
-	    echo "already installed: $(DESTDIR)/$(NAME) -> $(SRC)"; \
-	else \
-	    rm -rf "$(DESTDIR)/$(NAME)"; \
-	    cp -r "$(SRC)" "$(DESTDIR)/$(NAME)"; \
-	    echo "copied $(SRC) -> $(DESTDIR)/$(NAME)"; \
-	fi
+	rm -rf "$(DESTDIR)/$(NAME)"
+	@mkdir -p "$(DESTDIR)/$(NAME)"
+	@for item in $(PAYLOAD); do \
+	    cp -r "$(SRC)/$$item" "$(DESTDIR)/$(NAME)/$$item"; \
+	done
+	@find "$(DESTDIR)/$(NAME)" -name '__pycache__' -type d -prune -exec rm -rf {} +
+	@echo "installed $(SRC) -> $(DESTDIR)/$(NAME)"
 	@echo "restart FreeCAD to pick up the workbench"
 
 link:

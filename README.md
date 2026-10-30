@@ -32,9 +32,16 @@ workbench selector. `make uninstall` removes the installed copy again,
 tests that need no FreeCAD at all.
 
 Alternatively use FreeCAD's Addon Manager and point it at this repository, or
-drop the `NtrakContainer` folder into the `Mod` directory yourself — it needs
-`Init.py`, `InitGui.py`, `package.json`, `ntrak_container/` and `resources/`
-to stay together.
+clone it straight into the `Mod` directory under the add-on name:
+
+```sh
+git clone https://github.com/smellit/Ntrak.git \
+  ~/.var/app/org.freecad.FreeCAD/data/FreeCAD/v1-1/Mod/NtrakContainer
+```
+
+Whichever way you install it, `Init.py`, `InitGui.py`, `package.json`,
+`ntrak_container/` and `resources/` need to stay together, and the folder in
+`Mod` must be named `NtrakContainer`.
 
 ### Troubleshooting
 
@@ -85,7 +92,8 @@ panel with five tabs:
    pitch, mount rib size) plus a log of every adjustment applied.
 5. **Generate** — output folder, formats, and the button.
 
-Defaults reproduce the 48 ft ISO container of `../Container.FCStd` at 1:160.
+Defaults reproduce the 48 ft ISO reference container at 1:160 — the size the
+generator ships as `ContainerParams.reference()`.
 
 ## Saving and loading configurations
 
@@ -195,7 +203,8 @@ floor ribs at `Z = 0`, so it can be sliced without moving it.
 
 ## The far door end
 
-The template only modelled one (ribbed) end, leaving the other side open. The
+The original hand-modelled container only had one (ribbed) end, leaving the
+other side open. The
 `FarDoor` part closes it with a realistic ISO box door: two leaves meeting at a
 recessed centre seam, each framed by raised stiles and rails, with two vertical
 locking rods and cam-keeper blocks per leaf, hinge blocks down the outer edges
@@ -215,13 +224,13 @@ Two design rules make it safe:
 Toggle it off with `include_far_door=False` in the console (the panel always
 builds both door ends).
 
-The reference model's `FrameMiddle` / `FrameBack` are PartDesign clones of
-`FrameFront`; here the three mounting ribs are one compound part, which is
-simpler and print-ready.
+The hand-modelled reference used separate PartDesign clones for each mounting
+rib; here the three mounting ribs are one compound part, which is simpler and
+print-ready.
 
 ## How the geometry is derived
 
-The generator reproduces the reference model's construction:
+The generator reproduces the reference design's construction:
 
 * `inner_length = length - 2 * frame_size` — the corrugated span.
 * Side wall depth `= 2 * frame_size`, plate `= depth - rib height`, so the
@@ -238,19 +247,19 @@ to crest plane, `Z` = height with the floor crest plane at `Z = 0`.
 
 ```sh
 make test-params    # parameter maths only, plain Python, no FreeCAD needed
-make test           # all 67 tests: parameters, geometry, export, GUI, workbench
+make test           # all 124 tests: parameters, geometry, export, GUI, workbench
 ```
 
 `make test` runs `tests/run_tests.py` headless (`freecadcmd`) with an offscreen
 Qt platform, so it needs a display-free environment. The workbench test stubs
 the `FreeCADGui` workbench API, which only exists in a GUI session.
 
-`tests/test_geometry.py` compares the 1:160 build against volumes and bounding
-boxes measured from `Container.FCStd`: side walls 2189.6384 mm³, roof
-1334.8501 mm³, floor 1242.9017 mm³, three mounting ribs 3 × 773.28 mm³, door
-end 163.4849 mm³.
+`tests/test_geometry.py` pins the 1:160 build against the volumes and bounding
+boxes measured from the original hand-modelled reference container — side walls
+2189.6384 mm³, roof 1334.8501 mm³, floor 1242.9017 mm³, three mounting ribs
+3 × 773.28 mm³, door end 163.4849 mm³.
 
-Known difference: the reference `BackSide` body's border sketch has
-self-overlapping wires, which inflate its volume slightly. The generated door
+Known difference: the reference door-end sketch had self-overlapping wires,
+which inflate its volume slightly. The generated door
 end is modelled cleanly (border ring plus ribbed slab) and matches the same
 total volume.

@@ -4,8 +4,8 @@ Run headless with::
 
     flatpak run --command=freecadcmd org.freecad.FreeCAD tests/test_geometry.py
 
-The expected volumes and bounding boxes are measured from the reference model
-``Container.FCStd`` (see README).  The generated geometry is translated and
+The expected volumes and bounding boxes come from the original hand-modelled
+reference container (see README).  The generated geometry is translated and
 mirrored relative to it, so the comparison uses sizes and volumes, not
 positions.
 """
@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from ntrak_container import builder
 from ntrak_container.params import BuildConfig, ContainerParams, derive
 
-#: reference ground truth at 1:160, measured from Container.FCStd
+#: reference ground truth at 1:160, measured from the original hand-modelled container
 REFERENCE = {
     "SideWallRight": {"volume": 2189.6384, "size": (89.94, 1.5, 18.0975)},
     "SideWallLeft": {"volume": 2189.6384, "size": (89.94, 1.5, 18.0975)},

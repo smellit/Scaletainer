@@ -172,7 +172,7 @@ class ContainerParams:
 
     @classmethod
     def reference(cls) -> "ContainerParams":
-        """The exact 1:1 values behind ``Container.FCStd`` (built at 1:160)."""
+        """The 48 ft ISO reference size the original model was built from (1:160)."""
         return cls()
 
 
