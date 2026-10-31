@@ -36,7 +36,7 @@ https://github.com/user-attachments/assets/c88eb2c6-5cc4-41e6-b0c2-9a2cbd2dda46
 ### Option B — copy the folder yourself
 
 Download the repository as a ZIP from
-[github.com/smellit/Ntrak](https://github.com/smellit/Ntrak)
+[github.com/smellit/scaletainer](https://github.com/smellit/scaletainer)
 (**Code → Download ZIP**), unzip it, and copy the resulting folder into your
 FreeCAD `Mod` folder, renaming it to **`Scaletainer`**. The folder name matters.
 
@@ -271,7 +271,7 @@ slow so thin parts do not warp off the bed.
 
 * **No Scaletainer in the workbench list** — quit FreeCAD fully and start it
   again; the list is only built at startup. Then confirm the folder really is
-  `Mod/Scaletainer` (not `Mod/Ntrak-main` or `Mod/Ntrak/Scaletainer`) and that
+  `Mod/Scaletainer` and that
   `Scaletainer/InitGui.py` is inside it.
 * **The folder is right but nothing appears** — a second FreeCAD version on the
   same machine may use a different `Mod` folder. Check the exact path with the
@@ -290,8 +290,7 @@ slow so thin parts do not warp off the bed.
 ## 7. Licence and links
 
 * Licence: **GNU LGPL 2.1 or later** — see [LICENSE.md](LICENSE.md).
-* Source and issue tracker: [github.com/smellit/Ntrak](https://github.com/smellit/Ntrak)
-* Demo video: [youtu.be/sXaBZSGZ61g](https://youtu.be/sXaBZSGZ61g)
+* Source and issue tracker: [github.com/smellit/scaletainer](https://github.com/smellit/scaletainer)
 * Author: smellit
 * Running headless in a terminal, the file formats, the geometry maths and the
   test suite are documented for developers and scripters in
