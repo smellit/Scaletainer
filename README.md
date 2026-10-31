@@ -16,8 +16,7 @@ Everything happens in a panel with ordinary input fields.
 **See it in one minute** — type the 1:1 dimensions, pick `1:160 (N)` and press
 *Generate container*:
 
-[![Scaletainer demo: generating a scaled container in FreeCAD](resources/video_preview.jpeg)](resources/scaletainer.mp4)
-
+https://github.com/user-attachments/assets/c88eb2c6-5cc4-41e6-b0c2-9a2cbd2dda46
 
 ---
 
