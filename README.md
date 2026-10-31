@@ -241,6 +241,27 @@ Components written: `SideWallRight`, `SideWallLeft`, `Roof`, `Floor`,
 `MountFrame` (the gripping ribs), `DoorSide` (the ribbed end) and `FarDoor`
 (the realistic double-door end with locking rods, hinges and corner castings).
 
+**Each face is a separate part on purpose.** The generator writes the six faces
+individually so you can lay each one flat on the printer bed instead of printing
+a hollow box with bridged roofs and long overhangs. Flat parts print faster,
+need little or no support, and come out cleaner — glue them together after the
+print.
+
+**Turn on ironing for the best surface.** At these scales the top skin is all
+that is visible, and the corrugation and rib patterns show every layer line.
+Ironing drags the hot nozzle once more over the finished top surface and melts
+it smooth, which is the single biggest quality gain for these parts:
+
+* **PrusaSlicer / SuperSlicer** — **Print settings → Layers and perimeters →
+  Ironing** (check *Ironing only on top* to keep the time down).
+* **Cura** — search **ironing** in the print settings. The settings live in the
+  *Skin* category and are hidden by default: tick **Ironing** under
+  **Preferences → Configure tool settings**, then enable **Enable Ironing** in the *Prepare* sidebar. Tune **Ironing  Flow**, **Ironing Speed** and **Ironing Line Spacing** if the surface looks shiny-but-rough.
+
+It adds a little print time per part and is worth it on the walls, roof and
+doors. Print the parts flat with the outside face up, and keep the first layer
+slow so thin parts do not warp off the bed.
+
 ---
 
 ## 6. Troubleshooting
