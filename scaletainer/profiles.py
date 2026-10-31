@@ -95,6 +95,21 @@ def floor(rib: ScaledRib, plate: float) -> list[tuple[float, float]]:
     return corrugated_slab(rib, plate, crest_towards=-1)
 
 
+def flat_floor(rib: ScaledRib, thickness: float) -> list[tuple[float, float]]:
+    """Flat floor plate spanning the same corrugated length as :func:`floor`.
+
+    ``thickness`` is the full floor depth, so the plate reaches exactly as far
+    into the interior as the corrugated floor did and the container height is
+    unchanged.  ``v`` runs from ``-rib.height`` (outer face, the crest plane of
+    the corrugated floor) to ``thickness - rib.height`` (interior face).
+    """
+    if thickness <= 0:
+        raise ValueError(f"floor thickness must be positive, got {thickness:.6f} mm")
+    span = rib.pitch * rib.count
+    return _clean([(0.0, -rib.height), (span, -rib.height),
+                   (span, thickness - rib.height), (0.0, thickness - rib.height)])
+
+
 def door(rib: ScaledRib, depth: float) -> list[tuple[float, float]]:
     """Ribbed door end: flat backing plate with the crests facing outwards.
 

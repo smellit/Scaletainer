@@ -65,7 +65,8 @@ NUMBER_KEYS = ("scale_divider", "min_feature_mm", "min_rib_pitch_mm")
 RIB_KEYS = ("side_ribs", "top_ribs", "bottom_ribs", "door_ribs")
 RIB_FIELDS = ("count", "slope", "ratio", "height")
 #: option toggles; the panel only writes the first, the others are console-only
-BOOL_KEYS = ("include_mount_frame", "include_door_side", "include_far_door")
+BOOL_KEYS = ("include_mount_frame", "include_door_side", "include_far_door",
+             "include_floor_corrugation")
 
 #: every key accepted inside ``values``
 VALUE_KEYS = LENGTH_KEYS + COUNT_KEYS + NUMBER_KEYS + RIB_KEYS + BOOL_KEYS

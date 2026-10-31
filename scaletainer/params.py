@@ -191,6 +191,8 @@ class BuildConfig:
     include_door_side: bool = True
     #: build the realistic double-door end on the far side
     include_far_door: bool = True
+    #: build the floor corrugation; off prints a flat floor plate instead
+    include_floor_corrugation: bool = True
 
     def replaced(self, **changes) -> "BuildConfig":
         return replace(self, **changes)
@@ -256,6 +258,8 @@ class ScaledGeometry:
     far_door_hardware: float = 0.0
     #: human readable log of every floor / rib-count adjustment
     notes: list[str] = field(default_factory=list)
+    #: thickness of the flat floor plate when the corrugation is disabled
+    bottom_flat_plate: float = 0.0
 
     # --- derived helpers -------------------------------------------------
     @property
@@ -312,6 +316,16 @@ class ScaledGeometry:
         return (self.height
                 - self.bottom.height - self.bottom_skin
                 - self.top.height - self.top_skin)
+
+    @property
+    def floor_depth(self) -> float:
+        """Total floor thickness from the outer face to the interior face.
+
+        The corrugated floor is ``bottom.height + bottom_skin`` deep; the flat
+        floor plate is made exactly as deep, so disabling the corrugation never
+        changes the overall container height.
+        """
+        return self.bottom.height + self.bottom_skin
 
     @property
     def mount_x(self) -> list[float]:
@@ -451,6 +465,16 @@ def derive(params: ContainerParams, cfg: BuildConfig) -> ScaledGeometry:
     bottom = _resolve_rib(params.bottom_ribs, corrugated_span, d, cfg, notes, "bottom ribs")
     door = _resolve_rib(params.door_ribs, door_span, d, cfg, notes, "door ribs")
 
+    # A flat floor keeps the corrugated floor's total depth, so the interior
+    # height -- and with it the overall container height -- is unchanged.
+    bottom_flat_plate = 0.0
+    if not cfg.include_floor_corrugation:
+        bottom_flat_plate = bottom.height + _floor(
+            params.bottom_skin / d, cfg.min_feature_mm, notes, "floor plate")
+        notes.append(f"floor corrugation disabled: flat {bottom_flat_plate:.4f} mm "
+                     f"plate replaces {bottom.height:.4f} mm ribs plus "
+                     f"{params.bottom_skin / d:.4f} mm skin")
+
     # --- far (double) door end -----------------------------------------
     # The leaves live in the fixed band between the corrugated shell (X =
     # overall_length) and the nominal container end (X = length), so the outer
@@ -498,6 +522,7 @@ def derive(params: ContainerParams, cfg: BuildConfig) -> ScaledGeometry:
         far_door_rod_count=int(params.far_door_rod_count),
         far_door_hardware=band - plate,
         notes=notes,
+        bottom_flat_plate=bottom_flat_plate,
     )
     _check_fit(geom, notes)
     return geom

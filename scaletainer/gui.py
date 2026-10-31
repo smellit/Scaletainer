@@ -216,6 +216,14 @@ class ContainerPanel(QtWidgets.QWidget):
         self.inc_mount.toggled.connect(lambda *_: self._refresh_preview())
         form.addRow("", self.inc_mount)
 
+        self.inc_floor = QtWidgets.QCheckBox("Build floor corrugation")
+        self.inc_floor.setToolTip(
+            "Off: the floor is a flat plate of the same total thickness, so the\n"
+            "container keeps its overall height and prints without floor ribs.")
+        self.inc_floor.setChecked(True)
+        self.inc_floor.toggled.connect(lambda *_: self._refresh_preview())
+        form.addRow("", self.inc_floor)
+
         self.mount_count = _int_box(self.reference.mount_frame_count, high=50)
         self.mount_count.valueChanged.connect(lambda *_: self._refresh_preview())
         form.addRow("Mounting ribs", self.mount_count)
@@ -391,6 +399,7 @@ class ContainerPanel(QtWidgets.QWidget):
         values["min_feature_mm"] = float(self.min_feature.value())
         values["min_rib_pitch_mm"] = float(self.min_pitch.value())
         values["include_mount_frame"] = self.inc_mount.isChecked()
+        values["include_floor_corrugation"] = self.inc_floor.isChecked()
         # options without a widget here (kept from a loaded file)
         values.update(self._hidden_options)
         return values
@@ -494,6 +503,8 @@ class ContainerPanel(QtWidgets.QWidget):
             self.min_pitch.setValue(float(values.get("min_rib_pitch_mm") or 0.0))
             if values.get("include_mount_frame") is not None:
                 self.inc_mount.setChecked(bool(values["include_mount_frame"]))
+            if values.get("include_floor_corrugation") is not None:
+                self.inc_floor.setChecked(bool(values["include_floor_corrugation"]))
             # toggles with no widget here are kept so generate() honours them
             self._hidden_options = {
                 key: bool(values[key])
@@ -677,6 +688,7 @@ class ContainerPanel(QtWidgets.QWidget):
         self.min_feature.setValue(0.0)
         self.min_pitch.setValue(0.0)
         self.inc_mount.setChecked(True)
+        self.inc_floor.setChecked(True)
         self._hidden_options = {}
         self.config_name = ""
         self.config_name_edit.setText("")

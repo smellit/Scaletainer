@@ -142,6 +142,58 @@ class ScaleBehaviourTest(unittest.TestCase):
         self.assertEqual(names, ["SideWallRight", "SideWallLeft", "Roof", "Floor"])
 
 
+class FlatFloorTest(unittest.TestCase):
+    """Disabling the floor corrugation must not change the container height."""
+
+    @classmethod
+    def setUpClass(cls):
+        cls.geom, cls.components = build(include_floor_corrugation=False)
+        cls.by_name = {c.name: c for c in cls.components}
+
+    def test_floor_is_a_flat_plate(self):
+        floor = self.by_name["Floor"]
+        self.assertEqual(floor.info["ribs"], 0)
+        self.assertAlmostEqual(floor.bounding_box.ZLength, self.geom.floor_depth,
+                               places=6)
+        self.assertAlmostEqual(floor.volume,
+                               self.geom.inner_length * self.geom.mount_span
+                               * self.geom.floor_depth, places=3)
+
+    def test_floor_keeps_the_corrugated_depth(self):
+        corrugated, _ = build()
+        self.assertAlmostEqual(self.geom.floor_depth,
+                               corrugated.bottom.height + corrugated.bottom_skin,
+                               places=9)
+        self.assertAlmostEqual(self.geom.bottom_flat_plate, self.geom.floor_depth,
+                               places=9)
+
+    def test_overall_height_is_unchanged(self):
+        corrugated, parts = build()
+        flat_bb = builder.assembly_shape(self.components).BoundBox
+        corrugated_bb = builder.assembly_shape(parts).BoundBox
+        self.assertAlmostEqual(flat_bb.ZLength, corrugated_bb.ZLength, places=6)
+        self.assertAlmostEqual(flat_bb.ZLength, self.geom.height, places=6)
+        self.assertAlmostEqual(self.geom.mount_height, corrugated.mount_height,
+                               places=9)
+
+    def test_floor_still_sits_on_the_build_plate(self):
+        bb = self.by_name["Floor"].bounding_box
+        self.assertAlmostEqual(bb.ZMin, 0.0, places=6)
+        self.assertAlmostEqual(bb.ZMax, self.geom.floor_depth, places=6)
+
+    def test_flat_floor_survives_scaling(self):
+        for divider in (87.0, 160.0, 225.0):
+            geom, parts = build(divider, include_floor_corrugation=False)
+            floor = next(c for c in parts if c.name == "Floor")
+            with self.subTest(divider=divider):
+                self.assertTrue(floor.shape.isValid())
+                self.assertAlmostEqual(floor.bounding_box.ZLength, geom.floor_depth,
+                                       places=6)
+                self.assertAlmostEqual(
+                    builder.assembly_shape(parts).BoundBox.ZLength, geom.height,
+                    places=6)
+
+
 class FarDoorTest(unittest.TestCase):
     """The realistic double-door end must stay inside the overall length."""
 

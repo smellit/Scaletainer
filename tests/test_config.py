@@ -103,6 +103,7 @@ class RoundTripTest(unittest.TestCase):
         # toggles the panel no longer exposes keep their default
         self.assertTrue(built.include_door_side)
         self.assertTrue(built.include_far_door)
+        self.assertTrue(built.include_floor_corrugation)
 
     def test_typed_values_normalise(self):
         cfg = config.build({"length": 6058, "mount_frame_count": 3.0,

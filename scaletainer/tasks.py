@@ -111,6 +111,7 @@ def build_config(values: dict) -> BuildConfig:
         include_mount_frame=bool(values.get("include_mount_frame", True)),
         include_door_side=bool(values.get("include_door_side", True)),
         include_far_door=bool(values.get("include_far_door", True)),
+        include_floor_corrugation=bool(values.get("include_floor_corrugation", True)),
     )
 
 

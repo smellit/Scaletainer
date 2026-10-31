@@ -290,6 +290,7 @@ def write_params(path: str, params: ContainerParams, cfg: BuildConfig,
             "include_mount_frame": cfg.include_mount_frame,
             "include_door_side": cfg.include_door_side,
             "include_far_door": cfg.include_far_door,
+            "include_floor_corrugation": cfg.include_floor_corrugation,
         },
         "derived_scale_space": {
             "length": geom.length,
@@ -301,6 +302,7 @@ def write_params(path: str, params: ContainerParams, cfg: BuildConfig,
             "mount_span": geom.mount_span,
             "mount_height": geom.mount_height,
             "mount_x": geom.mount_x,
+            "floor_flat_plate": geom.bottom_flat_plate,
             "ribs": {
                 name: {"count": rib.count, "pitch": rib.pitch, "slope": rib.slope,
                        "hill": rib.hill, "valley": rib.valley, "height": rib.height}

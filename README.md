@@ -166,6 +166,10 @@ Both of those are measured in **millimetres of the finished model** and always
 stay in millimetres, whatever input unit you picked above.
 * **Build mounting frame ribs** — turn off to skip the underframe ribs (a
   lighter file if you only ever show the box from above).
+* **Build floor corrugation** — turn off to print a flat floor plate instead of
+  the ribbed floor. The plate is exactly as thick as the corrugation plus its
+  skin, so the container keeps its overall height and the interior stays the
+  same size.
 * **Mounting ribs** — how many of those ribs to place.
 
 Both door ends are always built.

@@ -143,14 +143,22 @@ def build_roof(geom: ScaledGeometry) -> Component:
 
 
 def build_floor(geom: ScaledGeometry) -> Component:
-    """Corrugated floor: ribs into the interior, crest plane flush with ``Z = 0``."""
+    """Corrugated floor: ribs into the interior, crest plane flush with ``Z = 0``.
+
+    With the corrugation disabled the floor is a flat plate of the same total
+    depth, so the container keeps its overall height.
+    """
     rib = geom.bottom
-    loop = profiles.floor(rib, geom.bottom_skin)
+    if geom.bottom_flat_plate > 0:
+        loop = profiles.flat_floor(rib, geom.bottom_flat_plate)
+        info = {"ribs": 0, "pitch": rib.pitch, "plate": geom.bottom_flat_plate}
+    else:
+        loop = profiles.floor(rib, geom.bottom_skin)
+        info = {"ribs": rib.count, "pitch": rib.pitch, "plate": geom.bottom_skin}
     origin = (geom.door_frame_width, geom.side_envelope, rib.height)
     face = make_face([loop], origin, (1.0, 0.0, 0.0), (0.0, 0.0, 1.0))
     shape = extrude(face, (0.0, 1.0, 0.0), geom.mount_span)
-    return Component("Floor", shape, (0.63, 0.63, 0.63),
-                     {"ribs": rib.count, "pitch": rib.pitch, "plate": geom.bottom_skin})
+    return Component("Floor", shape, (0.63, 0.63, 0.63), info)
 
 
 def build_mount_frame(geom: ScaledGeometry) -> Component:

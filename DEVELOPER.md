@@ -137,6 +137,10 @@ The generator reproduces the reference design's construction:
   (`flat * ratio`) and valley (`flat * (1 - ratio)`).
 * Mounting ribs span `width - 2 * wall_depth` and are spread evenly over the
   corrugated span.
+* `floor_depth = bottom.height + bottom_skin` is the total floor thickness. With
+  `include_floor_corrugation` off, `build_floor` extrudes a flat plate of exactly
+  that depth (`profiles.flat_floor`), so the interior height, `mount_height` and
+  the overall container height are unchanged.
 
 Coordinate system: `X` = length (door end at `X = 0`), `Y` = width crest plane
 to crest plane, `Z` = height with the floor crest plane at `Z = 0`.

@@ -220,6 +220,7 @@ class PanelTest(unittest.TestCase):
         self.panel._rib_fields["top_ribs"]["ratio"].setValue(0.33)
         self.panel.min_feature.setValue(0.4)
         self.panel.inc_mount.setChecked(False)
+        self.panel.inc_floor.setChecked(False)
         self.panel.parts_check.setChecked(False)
         self.panel.scale_combo.setCurrentIndex(
             self.panel.scale_combo.findData(225.0))
@@ -236,6 +237,7 @@ class PanelTest(unittest.TestCase):
         self.assertEqual(self.panel._unit, before_unit)
         self.assertEqual(self.panel.input_values(), before)
         self.assertFalse(self.panel.inc_mount.isChecked())
+        self.assertFalse(self.panel.inc_floor.isChecked())
         self.assertFalse(self.panel.parts_check.isChecked())
         self.assertAlmostEqual(self.panel._fields["frame_size"].value(), 5.0,
                                places=6)
