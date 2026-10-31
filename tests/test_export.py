@@ -7,6 +7,7 @@ Run headless with::
 
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -48,6 +49,58 @@ class ExportTest(unittest.TestCase):
         for name in names:
             with self.subTest(part=name):
                 self.assertTrue(os.path.isfile(os.path.join(sub, f"{self.result.stem}-{name}.stl")))
+
+    def test_parts_combined_3mf_holds_every_part(self):
+        import zipfile
+
+        path = os.path.join(self.tmp, f"{self.result.stem}-parts.3mf")
+        self.assertTrue(os.path.isfile(path))
+        with zipfile.ZipFile(path) as archive:
+            model = archive.read("3D/3dmodel.model").decode("utf-8")
+        num_parts = len(exporter.builder.build_components(derive(self.params, self.cfg)))
+        self.assertEqual(model.count("<item "), num_parts)
+        # every part keeps its own placement on the plate
+        transforms = set(re.findall(r'<item objectid="\d+" transform="([^"]+)"', model))
+        self.assertEqual(len(transforms), num_parts)
+
+    def test_combined_parts_rest_on_one_plane(self):
+        parts = self.result.loose
+        self.assertEqual(len(parts), 7)
+        for part in parts:
+            bb = part.shape.BoundBox
+            with self.subTest(part=part.name):
+                self.assertAlmostEqual(bb.ZMin, 0.0, places=6)
+                self.assertGreaterEqual(bb.XMin, -1e-6)
+                self.assertGreaterEqual(bb.YMin, -1e-6)
+        boxes = [p.shape.BoundBox for p in parts]
+        # no two parts may overlap on the build plate
+        for i, a in enumerate(boxes):
+            for j, b in enumerate(boxes[i + 1:], start=i + 1):
+                overlap = (min(a.XMax, b.XMax) - max(a.XMin, b.XMin) > 1e-6
+                           and min(a.YMax, b.YMax) - max(a.YMin, b.YMin) > 1e-6)
+                self.assertFalse(overlap, f"{parts[i].name} overlaps {parts[j].name}")
+
+    def test_combined_parts_are_flat(self):
+        """Each part lies on its broad face, not standing on a thin edge."""
+        for part in self.result.loose:
+            bb = part.shape.BoundBox
+            with self.subTest(part=part.name):
+                self.assertLessEqual(bb.ZLength, min(bb.XLength, bb.YLength) + 1e-6,
+                                     "part stands on its thin edge instead of lying flat")
+
+    def test_mount_rings_lie_flat_for_printing(self):
+        """The mounting ribs print as rings on their annular face, in one row."""
+        frame = [part for part in self.result.loose if part.name == "MountFrame"][0]
+        ribs = frame.shape.Solids
+        self.assertGreater(len(ribs), 1, "mounting frame lost its separate ribs")
+        for rib in ribs:
+            bb = rib.BoundBox
+            with self.subTest(rib=ribs.index(rib)):
+                self.assertLessEqual(bb.ZLength, min(bb.XLength, bb.YLength) + 1e-6,
+                                     "rib stands on edge instead of lying as a ring")
+                self.assertAlmostEqual(bb.ZMin, 0.0, places=6)
+                self.assertAlmostEqual(bb.YMin, ribs[0].BoundBox.YMin, places=6)
+                self.assertAlmostEqual(bb.YMax, ribs[0].BoundBox.YMax, places=6)
 
     def test_stl_is_reimportable(self):
         import Mesh

@@ -115,7 +115,12 @@ For scale `1:87` you get `Scaletainer-168x30x33-1-87.*`:
 | `.step` | the same components as solids |
 | `.stl`, `.3mf` | meshed assembly |
 | `.json` | inputs, derived values, adjustments, per-part volume and size |
-| `...-parts/` | one STL/3MF/STEP per component for multi-part prints |
+| `...-parts/` | one STL/3MF/STEP per component, oriented flat, for multi-part prints |
+| `...-parts.3mf` | every component as a 3MF object, laid out flat on the plate for printing together |
+
+In the parts layout each sheet is tipped so its ribbed face points up, the door
+ends lie on their outer face, and the mounting ribs lie on their annular face in
+a single row, so no part needs support.
 
 Components: `SideWallRight`, `SideWallLeft`, `Roof`, `Floor`, `MountFrame`,
 `DoorSide` (the ribbed end) and `FarDoor` (the double-door end). The model sits

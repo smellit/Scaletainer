@@ -191,7 +191,10 @@ generated.
   * **STL (.stl)** — for slicing.
   * **3MF (.3mf)** — modern slicer format, carries colours and units.
 * **Also write one file per component** — adds a `...-parts` subfolder with a
-  separate STL / 3MF / STEP for each piece, for printing parts individually.
+  separate STL / 3MF / STEP for each piece, for printing parts individually, and
+  a `...-parts.3mf` file holding every piece as its own object, laid out flat
+  side by side on the build plate so they print together in one job. The
+  mounting ribs lie on their annular face in one row, so each ring stays open.
 * **Save output folder, formats and parts option in config files** — on, a saved
   configuration also stores these settings; off, a file carries only the design
   and loading it leaves your current output settings alone.
