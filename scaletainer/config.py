@@ -39,6 +39,7 @@ import os
 import re
 from dataclasses import dataclass, field
 
+from .params import MAGNET_MEMBRANE_MIN_MM
 from .units import UNITS
 
 #: what a real file extension looks like (``.json``, ``.tar.gz`` tail, ...)
@@ -60,13 +61,16 @@ LENGTH_KEYS = (
 #: whole-number counts
 COUNT_KEYS = ("mount_frame_count", "far_door_rod_count")
 #: unitless numbers
-NUMBER_KEYS = ("scale_divider", "min_feature_mm", "min_rib_pitch_mm")
+NUMBER_KEYS = ("scale_divider", "min_feature_mm", "min_rib_pitch_mm",
+               "magnet_diameter_mm", "magnet_thickness_mm",
+               "counterpart_diameter_mm", "counterpart_thickness_mm",
+               "magnet_clearance_mm", "magnet_membrane_mm")
 #: rib pattern sub-dicts and the fields each one must carry
 RIB_KEYS = ("side_ribs", "top_ribs", "bottom_ribs", "door_ribs")
 RIB_FIELDS = ("count", "slope", "ratio", "height")
 #: option toggles; the panel only writes the first, the others are console-only
 BOOL_KEYS = ("include_mount_frame", "include_door_side", "include_far_door",
-             "include_floor_corrugation")
+             "include_floor_corrugation", "include_magnets")
 
 #: every key accepted inside ``values``
 VALUE_KEYS = LENGTH_KEYS + COUNT_KEYS + NUMBER_KEYS + RIB_KEYS + BOOL_KEYS
@@ -195,6 +199,10 @@ def clean_values(values: dict) -> dict:
     for key in RIB_KEYS:
         if values.get(key) is not None:
             out[key] = _rib(values[key], key)
+    if out.get("magnet_membrane_mm") is not None:
+        # a thinner membrane leaves too little plastic under the floor pocket
+        out["magnet_membrane_mm"] = max(out["magnet_membrane_mm"],
+                                        MAGNET_MEMBRANE_MIN_MM)
     return out
 
 

@@ -18,7 +18,7 @@ from PySide import QtCore, QtWidgets
 
 from . import config as config_io
 from . import tasks
-from .params import ContainerParams
+from .params import MAGNET_MEMBRANE_MIN_MM, ContainerParams
 from .units import SCALE_PRESETS, UNIT_LABELS, from_mm, to_mm
 
 #: 1:1 dimensions shown in the "Dimensions" tab
@@ -228,6 +228,50 @@ class ContainerPanel(QtWidgets.QWidget):
         self.mount_count.valueChanged.connect(lambda *_: self._refresh_preview())
         form.addRow("Mounting ribs", self.mount_count)
 
+        self.inc_magnets = QtWidgets.QCheckBox("Cut magnet pockets for stacking")
+        self.inc_magnets.setToolTip(
+            "On: the middle mounting rib gets a blind pocket in its bottom\n"
+            "member for a magnet, and the roof gets a shallow seat in its\n"
+            "underside for a steel counterpart, so stacked containers snap\n"
+            "together. A counterpart thicker than that seat is relieved out of\n"
+            "the rib's top member, so it still bottoms out in the seat. The\n"
+            "floor and roof plates are not pierced, and the other ribs are left\n"
+            "as they are. The parts are bought, so their sizes below are real\n"
+            "millimetres and are not scaled.")
+        self.inc_magnets.setChecked(False)
+        self.inc_magnets.toggled.connect(lambda *_: self._refresh_preview())
+        form.addRow("", self.inc_magnets)
+
+        self.magnet_diameter = _float_box(3.0, "mm")
+        self.magnet_diameter.valueChanged.connect(lambda *_: self._refresh_preview())
+        form.addRow("Magnet diameter", self.magnet_diameter)
+
+        self.magnet_thickness = _float_box(1.0, "mm")
+        self.magnet_thickness.valueChanged.connect(lambda *_: self._refresh_preview())
+        form.addRow("Magnet thickness", self.magnet_thickness)
+
+        self.counterpart_diameter = _float_box(7.0, "mm")
+        self.counterpart_diameter.valueChanged.connect(lambda *_: self._refresh_preview())
+        form.addRow("Counterpart diameter", self.counterpart_diameter)
+
+        self.counterpart_thickness = _float_box(0.5, "mm")
+        self.counterpart_thickness.valueChanged.connect(lambda *_: self._refresh_preview())
+        form.addRow("Counterpart thickness", self.counterpart_thickness)
+
+        self.magnet_clearance = _float_box(0.2, "mm", low=0.0)
+        self.magnet_clearance.valueChanged.connect(lambda *_: self._refresh_preview())
+        form.addRow("Magnet pocket clearance", self.magnet_clearance)
+        self.magnet_membrane = _float_box(
+            MAGNET_MEMBRANE_MIN_MM, "mm", low=MAGNET_MEMBRANE_MIN_MM)
+        self.magnet_membrane.valueChanged.connect(lambda *_: self._refresh_preview())
+        self.magnet_membrane.setToolTip(
+            "Plastic left between the magnet pocket and the floor's outside\n"
+            "face. The floor stays closed, so the magnet is hidden, but it\n"
+            "still sits close to the washer in the container above. Never less\n"
+            f"than {MAGNET_MEMBRANE_MIN_MM:g} mm, or the floor gets too\n"
+            "thin under the pocket.")
+        form.addRow("Magnet membrane", self.magnet_membrane)
+
         hint = QtWidgets.QLabel(
             "Minimum feature size raises any scaled length below it; minimum rib "
             "pitch drops ribs until the pitch is printable. Both are disabled at 0, "
@@ -400,6 +444,13 @@ class ContainerPanel(QtWidgets.QWidget):
         values["min_rib_pitch_mm"] = float(self.min_pitch.value())
         values["include_mount_frame"] = self.inc_mount.isChecked()
         values["include_floor_corrugation"] = self.inc_floor.isChecked()
+        values["include_magnets"] = self.inc_magnets.isChecked()
+        values["magnet_diameter_mm"] = float(self.magnet_diameter.value())
+        values["magnet_thickness_mm"] = float(self.magnet_thickness.value())
+        values["counterpart_diameter_mm"] = float(self.counterpart_diameter.value())
+        values["counterpart_thickness_mm"] = float(self.counterpart_thickness.value())
+        values["magnet_clearance_mm"] = float(self.magnet_clearance.value())
+        values["magnet_membrane_mm"] = float(self.magnet_membrane.value())
         # options without a widget here (kept from a loaded file)
         values.update(self._hidden_options)
         return values
@@ -505,6 +556,18 @@ class ContainerPanel(QtWidgets.QWidget):
                 self.inc_mount.setChecked(bool(values["include_mount_frame"]))
             if values.get("include_floor_corrugation") is not None:
                 self.inc_floor.setChecked(bool(values["include_floor_corrugation"]))
+            if values.get("include_magnets") is not None:
+                self.inc_magnets.setChecked(bool(values["include_magnets"]))
+            for key, box, default in (
+                    ("magnet_diameter_mm", self.magnet_diameter, 3.0),
+                    ("magnet_thickness_mm", self.magnet_thickness, 1.0),
+                    ("counterpart_diameter_mm", self.counterpart_diameter, 7.0),
+                    ("counterpart_thickness_mm", self.counterpart_thickness, 0.5),
+                    ("magnet_clearance_mm", self.magnet_clearance, 0.2),
+                    ("magnet_membrane_mm", self.magnet_membrane,
+                     MAGNET_MEMBRANE_MIN_MM)):
+                value = values.get(key)
+                box.setValue(default if value is None else float(value))
             # toggles with no widget here are kept so generate() honours them
             self._hidden_options = {
                 key: bool(values[key])
@@ -545,6 +608,12 @@ class ContainerPanel(QtWidgets.QWidget):
         widgets["mount_frame_count"] = self.mount_count
         widgets["min_feature_mm"] = self.min_feature
         widgets["min_rib_pitch_mm"] = self.min_pitch
+        widgets["magnet_diameter_mm"] = self.magnet_diameter
+        widgets["magnet_thickness_mm"] = self.magnet_thickness
+        widgets["counterpart_diameter_mm"] = self.counterpart_diameter
+        widgets["counterpart_thickness_mm"] = self.counterpart_thickness
+        widgets["magnet_clearance_mm"] = self.magnet_clearance
+        widgets["magnet_membrane_mm"] = self.magnet_membrane
         return widgets
 
     def _clamped_keys(self, cfg: config_io.ContainerConfig) -> list[str]:
@@ -689,6 +758,13 @@ class ContainerPanel(QtWidgets.QWidget):
         self.min_pitch.setValue(0.0)
         self.inc_mount.setChecked(True)
         self.inc_floor.setChecked(True)
+        self.inc_magnets.setChecked(False)
+        self.magnet_diameter.setValue(3.0)
+        self.magnet_thickness.setValue(1.0)
+        self.counterpart_diameter.setValue(7.0)
+        self.counterpart_thickness.setValue(0.5)
+        self.magnet_clearance.setValue(0.2)
+        self.magnet_membrane.setValue(MAGNET_MEMBRANE_MIN_MM)
         self._hidden_options = {}
         self.config_name = ""
         self.config_name_edit.setText("")

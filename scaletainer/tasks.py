@@ -9,7 +9,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from .params import BuildConfig, ContainerParams, RibPattern, derive
+from .params import (MAGNET_MEMBRANE_MIN_MM, BuildConfig, ContainerParams,
+                     RibPattern, derive)
 from .units import Scale, to_mm
 
 #: scalar 1:1 dimension fields, in the order the dialog shows them
@@ -41,6 +42,8 @@ class Preview:
     notes: list[str]
     #: far door end summary: band depth, plate, relief, hardware, rods, seam
     far_door: dict | None = None
+    #: magnet stacking summary: pocket sizes, depths and positions
+    magnets: dict | None = None
 
     def rows(self) -> list[tuple[str, str]]:
         """``(label, value)`` pairs, handy for a table widget."""
@@ -66,6 +69,17 @@ class Preview:
             out.append(("Far door frame", f"{fd['frame']:.4f} mm stiles/rails"))
             out.append(("Far door rods", f"{fd['rods_per_leaf']} per leaf, "
                         f"{fd['rod']:.4f} mm wide, seam {fd['gap']:.4f} mm"))
+        if self.magnets:
+            mg = self.magnets
+            out.append(("Magnet pockets", f"{mg['count']} x {mg['pocket']:.4f} mm, "
+                        f"{mg['floor_depth']:.4f} mm deep in the middle rib"))
+            out.append(("Counterpart seats", f"{mg['count']} x "
+                        f"{mg['counterpart']:.4f} mm, "
+                        f"{mg['roof_depth']:.4f} mm in the roof"
+                        + (f" + {mg['rib_top_depth']:.4f} mm in the rib"
+                           if mg["rib_top_depth"] > 0 else "")))
+            out.append(("Magnet gap", f"{mg['gap']:.4f} mm of plastic between "
+                        f"magnet and counterpart"))
         return out
 
 
@@ -112,6 +126,14 @@ def build_config(values: dict) -> BuildConfig:
         include_door_side=bool(values.get("include_door_side", True)),
         include_far_door=bool(values.get("include_far_door", True)),
         include_floor_corrugation=bool(values.get("include_floor_corrugation", True)),
+        include_magnets=bool(values.get("include_magnets", False)),
+        magnet_diameter_mm=float(values.get("magnet_diameter_mm") or 3.0),
+        magnet_thickness_mm=float(values.get("magnet_thickness_mm") or 1.0),
+        counterpart_diameter_mm=float(values.get("counterpart_diameter_mm") or 7.0),
+        counterpart_thickness_mm=float(values.get("counterpart_thickness_mm") or 0.5),
+        magnet_clearance_mm=float(values.get("magnet_clearance_mm") or 0.2),
+        magnet_membrane_mm=float(values.get("magnet_membrane_mm")
+                                 or MAGNET_MEMBRANE_MIN_MM),
     )
 
 
@@ -130,13 +152,22 @@ def preview(values: dict, unit: str = "mm") -> Preview:
                     "gap": geom.far_door_gap, "corner": geom.far_door_corner,
                     "frame": geom.far_door_stile,
                     "rods_per_leaf": geom.far_door_rod_count}
+    magnets = None
+    if geom.magnet_pocket > 0:
+        magnets = {"count": len(geom.magnet_x), "pocket": geom.magnet_pocket,
+                   "floor_depth": geom.magnet_floor_depth,
+                   "counterpart": geom.counterpart_pocket,
+                   "roof_depth": geom.magnet_roof_depth,
+                   "rib_top_depth": geom.magnet_rib_top_depth,
+                   "gap": geom.magnet_gap,
+                   "x": list(geom.magnet_x), "y": geom.magnet_y}
     return Preview(
         scale=Scale(cfg.scale_divider),
         length=geom.length, width=geom.width, height=geom.height,
         inner_length=geom.inner_length, side_envelope=geom.side_envelope,
         side_plate=geom.side_plate, mount_span=geom.mount_span,
         mount_height=geom.mount_height, ribs=ribs, notes=list(geom.notes),
-        far_door=far_door,
+        far_door=far_door, magnets=magnets,
     )
 
 
