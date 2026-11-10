@@ -69,6 +69,9 @@ class _IntBox(QtWidgets.QDoubleSpinBox):
     unit suffix, and the up/down buttons are removed as requested.
     """
 
+    #: width the inner line edit is pinned to; see the comment in __init__
+    _LINE_EDIT_WIDTH = 120
+
     def __init__(self, value: float, unit: str, low: float = 0.0001):
         super().__init__()
         # High internal precision: the spin box clamps its stored value to
@@ -78,6 +81,12 @@ class _IntBox(QtWidgets.QDoubleSpinBox):
         self.setRange(low, 1_000_000.0)
         self.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
         self.setSuffix(f" {unit}")
+        # Qt sizes the inner line edit from the style's sub-control rect.  As
+        # soon as a stylesheet styles QAbstractSpinBox -- FreeCAD's own
+        # FreeCAD.qss does -- that rect collapses to 1 px when the buttons are
+        # hidden, so the value is there but invisible.  Pinning a minimum width
+        # keeps the text readable whatever the active theme does.
+        self.lineEdit().setMinimumWidth(self._LINE_EDIT_WIDTH)
         self.setValue(value)
 
     def textFromValue(self, value: float) -> str:

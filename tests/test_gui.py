@@ -126,6 +126,36 @@ class PanelTest(unittest.TestCase):
         self.assertAlmostEqual(box.value(), 14630.4, places=6)
         self.assertEqual(box.text().split()[0], "14630")
 
+    def test_dimension_fields_stay_readable_under_a_stylesheet(self):
+        """Regression: a styled QAbstractSpinBox collapsed the line edit to 1 px.
+
+        Qt derives the inner line edit's geometry from the style's sub-control
+        rect.  Once a stylesheet styles QAbstractSpinBox -- FreeCAD's own
+        FreeCAD.qss does -- that rect collapses to a single pixel when the
+        up/down buttons are hidden, so every dimension field rendered blank
+        even though its value was correct.  Pinning a minimum width on the line
+        edit keeps the text visible whatever theme is active.
+        """
+        app = QtWidgets.QApplication.instance()
+        from scaletainer import gui
+
+        previous = app.styleSheet()
+        app.setStyleSheet("QAbstractSpinBox, QSpinBox { border: 1px solid #c8c8c8; }")
+        try:
+            panel = gui.ContainerPanel()
+            panel.show()
+            app.processEvents()
+            for name, _label in gui.DIMENSION_FIELDS:
+                box = panel._fields[name]
+                self.assertTrue(box.text().strip(), name)
+                self.assertGreaterEqual(box.lineEdit().minimumWidth(), 100, name)
+                self.assertGreaterEqual(box.lineEdit().geometry().width(), 100, name)
+            panel.close()
+            panel.deleteLater()
+            app.processEvents()
+        finally:
+            app.setStyleSheet(previous)
+
     def test_typed_value_with_unit_suffix_is_accepted(self):
         """Regression: the whole display line ("9000 mm") must parse, not revert.
 
