@@ -98,6 +98,51 @@ def pattern(shape: Part.Shape, direction: tuple[float, float, float],
             for i in range(max(int(occurrences), 1))]
 
 
+def magnet_cutters(geom: ScaledGeometry, diameter: float,
+                   z0: float, z1: float) -> Part.Shape | None:
+    """Vertical cylinders that clear one blind pocket in the middle rib(s).
+
+    The magnet pocket is drilled from inside the container through the rib's
+    bottom member and into the floor plate, stopping ``magnet_membrane`` short
+    of the outside face, so the floor stays closed but the magnet sits close to
+    the outside.  The counterpart seat is a shallow recess in the roof's
+    underside; when the counterpart is thicker than that seat, the rest of its
+    thickness is relieved out of the rib's top member.  Only the middle rib(s)
+    are cut; the others are left untouched.
+    """
+    if diameter <= 0 or z1 <= z0:
+        return None
+    radius = diameter / 2.0
+    return Part.makeCompound([
+        Part.makeCylinder(radius, z1 - z0, Vec(x, geom.magnet_y, z0), Vec(0.0, 0.0, 1.0))
+        for x in geom.magnet_x])
+
+
+def cut_magnet_pockets(shape: Part.Shape, geom: ScaledGeometry, *,
+                       floor: bool = False, roof: bool = False,
+                       rib_top: bool = False) -> Part.Shape:
+    """Remove the magnet pocket and the counterpart seat from *shape*."""
+    if floor:
+        cutters = magnet_cutters(geom, geom.magnet_pocket,
+                                 geom.magnet_floor_top - geom.magnet_floor_depth,
+                                 geom.magnet_floor_top)
+        if cutters is not None:
+            shape = shape.cut(cutters)
+    if roof:
+        cutters = magnet_cutters(geom, geom.counterpart_pocket,
+                                 geom.magnet_roof_bottom,
+                                 geom.magnet_roof_bottom + geom.magnet_roof_depth)
+        if cutters is not None:
+            shape = shape.cut(cutters)
+    if rib_top:
+        cutters = magnet_cutters(geom, geom.counterpart_pocket,
+                                 geom.magnet_roof_bottom - geom.magnet_rib_top_depth,
+                                 geom.magnet_roof_bottom)
+        if cutters is not None:
+            shape = shape.cut(cutters)
+    return shape
+
+
 # --------------------------------------------------------------------------
 # components
 # --------------------------------------------------------------------------
@@ -138,6 +183,7 @@ def build_roof(geom: ScaledGeometry) -> Component:
     origin = (geom.door_frame_width, geom.side_envelope, geom.height - rib.height)
     face = make_face([loop], origin, (1.0, 0.0, 0.0), (0.0, 0.0, 1.0))
     shape = extrude(face, (0.0, 1.0, 0.0), geom.mount_span)
+    shape = cut_magnet_pockets(shape, geom, roof=True)
     return Component("Roof", shape, (0.69, 0.69, 0.69),
                      {"ribs": rib.count, "pitch": rib.pitch, "plate": geom.top_skin})
 
@@ -158,6 +204,7 @@ def build_floor(geom: ScaledGeometry) -> Component:
     origin = (geom.door_frame_width, geom.side_envelope, rib.height)
     face = make_face([loop], origin, (1.0, 0.0, 0.0), (0.0, 0.0, 1.0))
     shape = extrude(face, (0.0, 1.0, 0.0), geom.mount_span)
+    shape = cut_magnet_pockets(shape, geom, floor=True)
     return Component("Floor", shape, (0.63, 0.63, 0.63), info)
 
 
@@ -174,7 +221,9 @@ def build_mount_frame(geom: ScaledGeometry) -> Component:
     face = make_face(loops, origin, (0.0, 1.0, 0.0), (0.0, 0.0, 1.0))
     rib = extrude(face, (1.0, 0.0, 0.0), geom.mount_frame_depth)
     shapes = [moved(rib, (x, 0.0, 0.0)) for x in geom.mount_x]
-    return Component("MountFrame", Part.makeCompound(shapes), (0.50, 0.55, 0.58),
+    frame = Part.makeCompound(shapes)
+    frame = cut_magnet_pockets(frame, geom, floor=True, rib_top=True)
+    return Component("MountFrame", frame, (0.50, 0.55, 0.58),
                      {"ribs": len(shapes), "wall": geom.mount_frame_wall,
                       "depth": geom.mount_frame_depth, "span": geom.mount_span,
                       "height": geom.mount_height})

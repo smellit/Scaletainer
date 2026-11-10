@@ -172,6 +172,71 @@ Toggle it with `include_far_door=False` (the panel always builds both ends). The
 reference used separate PartDesign clones per mounting rib; here the three ribs
 are one compound part.
 
+### Magnet stacking pockets
+
+`include_magnets` cuts a vertical pocket through the middle mounting rib, the
+floor and the roof, so stacked containers snap together. The magnet and its steel
+counterpart are **bought parts**, so their sizes live in `BuildConfig` as
+absolute millimetres and are never divided by `scale_divider`:
+
+| Field | Default | Meaning |
+| --- | --- | --- |
+| `magnet_diameter_mm` | 3.0 | disc magnet diameter |
+| `magnet_thickness_mm` | 1.0 | disc magnet thickness |
+| `counterpart_diameter_mm` | 7.0 | steel washer diameter |
+| `counterpart_thickness_mm` | 0.5 | steel washer thickness |
+| `magnet_clearance_mm` | 0.2 | diametral play, added to both diameters |
+| `magnet_membrane_mm` | 0.5 | plastic left between a pocket and the outside face (minimum) |
+
+`derive()` turns those into `magnet_pocket` / `counterpart_pocket` (diameter plus
+clearance) and the two thicknesses. The depths are derived, not configured:
+
+* `magnet_floor_top = floor_depth + mount_frame_wall` — the top face of the rib's
+  bottom member. The pocket is a blind hole drilled from there down through the
+  member and into the floor plate, so
+  `magnet_floor_depth = mount_frame_wall + floor_depth - magnet_membrane`.
+* `magnet_roof_bottom = height - roof_depth` — the roof's inner face. The
+  counterpart gets a shallow seat in the roof's underside:
+  `magnet_roof_depth = min(counterpart_thickness, roof_depth - magnet_membrane)`.
+  The seat is capped so the roof always keeps a membrane of plate above it.
+* `magnet_rib_top_depth = min(counterpart_thickness - magnet_roof_depth,
+  mount_frame_wall)` — whatever does not fit in the seat is relieved out of the
+  rib's top member, measured down from the roof's inner face, so a thick
+  counterpart still bottoms out in the seat instead of holding the rib off the
+  roof. Capped at the member thickness; past that the part protrudes into the
+  container and `_check_fit` notes it.
+* `magnet_gap = magnet_membrane + roof_depth - magnet_roof_depth` — the plastic
+  between a magnet and the washer of the container above it (1.25 mm at 1:160).
+
+The floor pocket stops `magnet_membrane` short of the outside face, so the floor
+plate stays closed and the container is watertight, while the magnet sits close
+to the outside. That gap is what the magnet has to pull through, so the membrane
+is the knob for pull strength: smaller is stronger but risks a visible dimple or
+a pierced plate.
+
+`MAGNET_MEMBRANE_MIN_MM` (0.5 mm) is a hard floor: `derive()` raises a smaller
+value and logs a note, `config.clean_values` clamps a hand-edited file, and the
+panel spin box will not go below it. Below that the floor under the pocket is
+too thin to handle. `_check_fit` notes when a pocket is shallower than the part
+it must hold.
+
+`builder.magnet_cutters` builds one cylinder per pocket at
+`(magnet_x, magnet_y)`, where `magnet_y` is the container centreline and
+`magnet_x` lists the middle rib only — `mount_x[len // 2]` for an odd rib count,
+the two central ribs for an even one, and the single rib when there is only one.
+The other ribs are never touched. `builder.cut_magnet_pockets` applies the
+cutters to `build_floor` (down, through the rib's bottom member into the floor
+plate) and to `build_roof` (up, a shallow seat in the roof's underside only).
+`build_mount_frame` gets `floor=True` and `rib_top=True`: the floor pocket, plus
+the relief for the part of a thick counterpart that does not fit in the roof
+seat.
+
+`_check_fit` only *notes* a pocket wider than `mount_frame_depth` (the rib is cut
+through at the pocket), a pocket shallower than its part, and a counterpart
+thicker than the roof seat (saying how much is relieved out of the rib) or
+thicker than seat plus rib member (it will protrude). None of them is fatal, and
+the overall height never changes.
+
 ## Development
 
 The repository root *is* the add-on folder: `Init.py`, `InitGui.py`,

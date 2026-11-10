@@ -30,6 +30,11 @@ FT = 304.8
 #: reference model), which keeps the corrugated wall flush with the end frames.
 SIDE_ENVELOPE_FRAMES = 2
 
+#: Thinnest plastic allowed between a magnet pocket and the outside face.  The
+#: floor is the part that matters: below this the pocket bottom gets so close to
+#: the outer face that the plate is left too weak to handle.
+MAGNET_MEMBRANE_MIN_MM = 0.5
+
 
 @dataclass(frozen=True)
 class RibPattern:
@@ -193,6 +198,21 @@ class BuildConfig:
     include_far_door: bool = True
     #: build the floor corrugation; off prints a flat floor plate instead
     include_floor_corrugation: bool = True
+    #: cut magnet pockets so stacked containers snap together.  The magnet and
+    #: its steel counterpart are bought parts, so their sizes are absolute
+    #: millimetres and are *not* divided by the scale divider.
+    include_magnets: bool = False
+    magnet_diameter_mm: float = 3.0
+    magnet_thickness_mm: float = 1.0
+    counterpart_diameter_mm: float = 7.0
+    counterpart_thickness_mm: float = 0.5
+    #: diametral play between a part and the pocket that holds it
+    magnet_clearance_mm: float = 0.2
+    #: material left between a pocket and the outside face, so the floor and
+    #: the roof stay closed while the magnet and its counterpart sit close
+    #: enough together to attract each other through the two membranes.  Never
+    #: less than :data:`MAGNET_MEMBRANE_MIN_MM`.
+    magnet_membrane_mm: float = MAGNET_MEMBRANE_MIN_MM
 
     def replaced(self, **changes) -> "BuildConfig":
         return replace(self, **changes)
@@ -260,6 +280,17 @@ class ScaledGeometry:
     notes: list[str] = field(default_factory=list)
     #: thickness of the flat floor plate when the corrugation is disabled
     bottom_flat_plate: float = 0.0
+    #: magnet stacking: pocket diameter in the floor and mounting ribs
+    magnet_pocket: float = 0.0
+    #: magnet stacking: thickness of the magnet the pocket is sized for
+    magnet_thickness: float = 0.0
+    #: magnet stacking: seat diameter in the roof's underside
+    counterpart_pocket: float = 0.0
+    #: magnet stacking: thickness of the counterpart the seat is sized for
+    counterpart_thickness: float = 0.0
+    #: magnet stacking: material left between the magnet pocket and the floor's
+    #: outside face
+    magnet_membrane: float = 0.0
 
     # --- derived helpers -------------------------------------------------
     @property
@@ -326,6 +357,97 @@ class ScaledGeometry:
         changes the overall container height.
         """
         return self.bottom.height + self.bottom_skin
+
+    @property
+    def magnet_floor_top(self) -> float:
+        """Z of the top of a magnet pocket: the top face of the rib's bottom member.
+
+        The pocket is a blind hole drilled from inside the container into the
+        rib's bottom member only.  It stops short of the floor plate, so the
+        floor stays closed and the container keeps its watertight bottom.
+        """
+        return self.floor_depth + self.mount_frame_wall
+
+    @property
+    def magnet_roof_bottom(self) -> float:
+        """Z of the counterpart seat: the roof's inner face.
+
+        The seat is a shallow recess in the underside of the roof plate, so the
+        rib's top member is left completely solid.  The washer is dropped into
+        the seat before the mounting rib is glued on.
+        """
+        return self.height - self.roof_depth
+
+    @property
+    def roof_depth(self) -> float:
+        """Total roof thickness from the interior face to the outer face."""
+        return self.height - self.floor_depth - self.mount_height
+
+    @property
+    def magnet_floor_depth(self) -> float:
+        """Depth of a magnet pocket, measured down from the rib's bottom member top.
+
+        The pocket runs through the rib's bottom member and into the floor
+        plate, stopping ``magnet_membrane`` short of the outer face, so the
+        floor stays closed but the magnet sits close to the outside.
+        """
+        return self.mount_frame_wall + max(self.floor_depth - self.magnet_membrane, 0.0)
+
+    @property
+    def magnet_roof_depth(self) -> float:
+        """Depth of the counterpart seat, measured up from the roof's inner face.
+
+        The seat is as deep as the counterpart is thick, but capped so the roof
+        always keeps ``magnet_membrane`` of plate above it.  Whatever does not
+        fit in the roof is taken out of the rib's top member instead, see
+        :attr:`magnet_rib_top_depth`.
+        """
+        return min(self.counterpart_thickness,
+                   max(self.roof_depth - self.magnet_membrane, 0.0))
+
+    @property
+    def magnet_rib_top_depth(self) -> float:
+        """Depth of the counterpart relief in the rib's top member.
+
+        A counterpart thicker than the roof seat would otherwise stand proud of
+        the roof's inner face and hold the rib off.  The rest of its thickness
+        is cut out of the rib's top member, measured down from the roof's inner
+        face, so the part still bottoms out in the seat.  Capped at the member
+        thickness: past that the counterpart simply reaches into the opening.
+        """
+        return min(max(self.counterpart_thickness - self.magnet_roof_depth, 0.0),
+                   self.mount_frame_wall)
+
+    @property
+    def magnet_gap(self) -> float:
+        """Plastic between a magnet and the washer of the container above it.
+
+        The magnet sits against the floor membrane and the washer against the
+        bottom of its seat, so the two are separated by the floor membrane plus
+        whatever roof plate is left above the seat.
+        """
+        return self.magnet_membrane + max(self.roof_depth - self.magnet_roof_depth, 0.0)
+
+    @property
+    def magnet_x(self) -> list[float]:
+        """X centres of the magnet pockets: the middle mounting rib(s) only.
+
+        The other ribs stay exactly as they are, so a container still looks and
+        prints like the plain one apart from the one (or two) pockets that hold
+        the magnet and its steel counterpart.  An odd rib count has a single
+        middle rib; an even count has two, and both get a pocket so the pair
+        stays symmetric.
+        """
+        ribs = self.mount_x
+        middle = len(ribs) // 2
+        chosen = [ribs[middle]] if len(ribs) % 2 else [ribs[middle - 1], ribs[middle]]
+        return [self.door_frame_width + x + self.mount_frame_depth / 2.0
+                for x in chosen]
+
+    @property
+    def magnet_y(self) -> float:
+        """Y of the magnet pockets: the container's centreline."""
+        return self.side_envelope + self.mount_span / 2.0
 
     @property
     def mount_x(self) -> list[float]:
@@ -475,6 +597,33 @@ def derive(params: ContainerParams, cfg: BuildConfig) -> ScaledGeometry:
                      f"plate replaces {bottom.height:.4f} mm ribs plus "
                      f"{params.bottom_skin / d:.4f} mm skin")
 
+    # --- magnet stacking ------------------------------------------------
+    # The magnet and its steel counterpart are bought parts, so their sizes are
+    # absolute millimetres and are *not* divided by the scale divider.  The
+    # magnet pocket is a blind hole cut through the middle rib's bottom member
+    # into the floor plate, stopping ``magnet_membrane`` short of the outside
+    # face.  The counterpart only needs a shallow seat in the roof's underside,
+    # so the rib's top member is left solid.
+    magnet_pocket = magnet_thickness = magnet_membrane = 0.0
+    counterpart_pocket = counterpart_thickness = 0.0
+    if cfg.include_magnets:
+        magnet_pocket = cfg.magnet_diameter_mm + cfg.magnet_clearance_mm
+        magnet_thickness = cfg.magnet_thickness_mm
+        counterpart_pocket = cfg.counterpart_diameter_mm + cfg.magnet_clearance_mm
+        counterpart_thickness = cfg.counterpart_thickness_mm
+        magnet_membrane = max(cfg.magnet_membrane_mm, MAGNET_MEMBRANE_MIN_MM)
+        if cfg.magnet_membrane_mm < MAGNET_MEMBRANE_MIN_MM:
+            notes.append(
+                f"magnet membrane raised to {MAGNET_MEMBRANE_MIN_MM:g} mm "
+                f"(asked for {cfg.magnet_membrane_mm:g} mm) so the floor keeps "
+                f"enough material under the pocket")
+        notes.append(
+            f"magnet stacking: {magnet_pocket:.2f} mm pockets for "
+            f"{cfg.magnet_diameter_mm:g} x {cfg.magnet_thickness_mm:g} mm magnets, "
+            f"{counterpart_pocket:.2f} mm seats for "
+            f"{cfg.counterpart_diameter_mm:g} x "
+            f"{cfg.counterpart_thickness_mm:g} mm counterparts")
+
     # --- far (double) door end -----------------------------------------
     # The leaves live in the fixed band between the corrugated shell (X =
     # overall_length) and the nominal container end (X = length), so the outer
@@ -523,6 +672,11 @@ def derive(params: ContainerParams, cfg: BuildConfig) -> ScaledGeometry:
         far_door_hardware=band - plate,
         notes=notes,
         bottom_flat_plate=bottom_flat_plate,
+        magnet_pocket=magnet_pocket,
+        magnet_thickness=magnet_thickness,
+        counterpart_pocket=counterpart_pocket,
+        counterpart_thickness=counterpart_thickness,
+        magnet_membrane=magnet_membrane,
     )
     _check_fit(geom, notes)
     return geom
@@ -544,3 +698,23 @@ def _check_fit(geom: ScaledGeometry, notes: list[str]) -> None:
         raise ValueError("no room left for the mounting frame between the skins")
     if geom.mount_span <= 2 * geom.mount_frame_wall:
         raise ValueError("mounting frame wall too thick for the available span")
+    if geom.magnet_pocket > 0:
+        if geom.magnet_pocket > geom.mount_frame_depth:
+            notes.append(f"magnet pocket {geom.magnet_pocket:.4f} mm is wider than the "
+                         f"{geom.mount_frame_depth:.4f} mm mounting rib: the rib is "
+                         f"cut through at the pocket")
+        if geom.magnet_floor_depth < geom.magnet_thickness:
+            notes.append(f"magnet pocket is only {geom.magnet_floor_depth:.4f} mm deep "
+                         f"for a {geom.magnet_thickness:.4f} mm magnet: it will stand "
+                         f"proud of the floor")
+    if geom.counterpart_pocket > 0:
+        if geom.magnet_roof_depth < geom.counterpart_thickness:
+            notes.append(f"counterpart seat is only {geom.magnet_roof_depth:.4f} mm "
+                         f"deep for a {geom.counterpart_thickness:.4f} mm counterpart; "
+                         f"the remaining {geom.magnet_rib_top_depth:.4f} mm is cut out "
+                         f"of the mounting rib")
+        if geom.counterpart_thickness > geom.magnet_roof_depth + geom.magnet_rib_top_depth:
+            notes.append(f"counterpart is {geom.counterpart_thickness:.4f} mm thick but "
+                         f"the roof seat and rib together only take "
+                         f"{geom.magnet_roof_depth + geom.magnet_rib_top_depth:.4f} mm; "
+                         f"it will protrude into the container")

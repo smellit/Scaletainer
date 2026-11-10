@@ -104,6 +104,10 @@ class RoundTripTest(unittest.TestCase):
         self.assertTrue(built.include_door_side)
         self.assertTrue(built.include_far_door)
         self.assertTrue(built.include_floor_corrugation)
+        # magnet stacking is opt-in and keeps its bought-part sizes
+        self.assertFalse(built.include_magnets)
+        self.assertAlmostEqual(built.magnet_diameter_mm, 3.0, places=9)
+        self.assertAlmostEqual(built.counterpart_diameter_mm, 7.0, places=9)
 
     def test_typed_values_normalise(self):
         cfg = config.build({"length": 6058, "mount_frame_count": 3.0,

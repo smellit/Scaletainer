@@ -126,6 +126,36 @@ class PanelTest(unittest.TestCase):
         self.assertAlmostEqual(box.value(), 14630.4, places=6)
         self.assertEqual(box.text().split()[0], "14630")
 
+    def test_dimension_fields_stay_readable_under_a_stylesheet(self):
+        """Regression: a styled QAbstractSpinBox collapsed the line edit to 1 px.
+
+        Qt derives the inner line edit's geometry from the style's sub-control
+        rect.  Once a stylesheet styles QAbstractSpinBox -- FreeCAD's own
+        FreeCAD.qss does -- that rect collapses to a single pixel when the
+        up/down buttons are hidden, so every dimension field rendered blank
+        even though its value was correct.  Pinning a minimum width on the line
+        edit keeps the text visible whatever theme is active.
+        """
+        app = QtWidgets.QApplication.instance()
+        from scaletainer import gui
+
+        previous = app.styleSheet()
+        app.setStyleSheet("QAbstractSpinBox, QSpinBox { border: 1px solid #c8c8c8; }")
+        try:
+            panel = gui.ContainerPanel()
+            panel.show()
+            app.processEvents()
+            for name, _label in gui.DIMENSION_FIELDS:
+                box = panel._fields[name]
+                self.assertTrue(box.text().strip(), name)
+                self.assertGreaterEqual(box.lineEdit().minimumWidth(), 100, name)
+                self.assertGreaterEqual(box.lineEdit().geometry().width(), 100, name)
+            panel.close()
+            panel.deleteLater()
+            app.processEvents()
+        finally:
+            app.setStyleSheet(previous)
+
     def test_typed_value_with_unit_suffix_is_accepted(self):
         """Regression: the whole display line ("9000 mm") must parse, not revert.
 
@@ -221,6 +251,10 @@ class PanelTest(unittest.TestCase):
         self.panel.min_feature.setValue(0.4)
         self.panel.inc_mount.setChecked(False)
         self.panel.inc_floor.setChecked(False)
+        self.panel.inc_magnets.setChecked(True)
+        self.panel.magnet_diameter.setValue(4.0)
+        self.panel.counterpart_thickness.setValue(0.8)
+        self.panel.magnet_membrane.setValue(0.6)
         self.panel.parts_check.setChecked(False)
         self.panel.scale_combo.setCurrentIndex(
             self.panel.scale_combo.findData(225.0))
@@ -238,6 +272,11 @@ class PanelTest(unittest.TestCase):
         self.assertEqual(self.panel.input_values(), before)
         self.assertFalse(self.panel.inc_mount.isChecked())
         self.assertFalse(self.panel.inc_floor.isChecked())
+        self.assertTrue(self.panel.inc_magnets.isChecked())
+        self.assertAlmostEqual(self.panel.magnet_diameter.value(), 4.0, places=6)
+        self.assertAlmostEqual(self.panel.counterpart_thickness.value(), 0.8,
+                               places=6)
+        self.assertAlmostEqual(self.panel.magnet_membrane.value(), 0.6, places=6)
         self.assertFalse(self.panel.parts_check.isChecked())
         self.assertAlmostEqual(self.panel._fields["frame_size"].value(), 5.0,
                                places=6)
@@ -515,6 +554,25 @@ class PanelTest(unittest.TestCase):
         self.assertEqual(self.panel.config_label.text(), "no configuration file")
         self.assertEqual(self.panel.config_name_edit.text(), "")
         self.assertEqual(self.panel._hidden_options, {})
+
+    def test_magnet_pockets_show_up_in_the_preview(self):
+        self.assertNotIn("Magnet pockets", dict(self.panel.preview_rows()))
+        self.panel.inc_magnets.setChecked(True)
+        rows = dict(self.panel.preview_rows())
+        self.assertIn("Magnet pockets", rows)
+        self.assertIn("Counterpart seats", rows)
+        self.assertIn("Magnet gap", rows)
+        self.assertIn("1 x 3.2000 mm", rows["Magnet pockets"])
+        self.assertIn("1 x 7.2000 mm", rows["Counterpart seats"])
+
+    def test_restore_defaults_turns_magnets_off(self):
+        self.panel.inc_magnets.setChecked(True)
+        self.panel.magnet_diameter.setValue(4.0)
+        self.panel.restore_defaults()
+        self.assertFalse(self.panel.inc_magnets.isChecked())
+        self.assertAlmostEqual(self.panel.magnet_diameter.value(), 3.0, places=6)
+        self.assertAlmostEqual(self.panel.magnet_clearance.value(), 0.2, places=6)
+        self.assertAlmostEqual(self.panel.magnet_membrane.value(), 0.5, places=6)
 
     def test_export_option_can_be_left_out_of_the_file(self):
         from scaletainer import config as config_io

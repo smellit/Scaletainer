@@ -72,7 +72,7 @@ In the workbench selector dropdown (the list near the top of the window that
 normally shows *Part*, *Sketcher*, *Assembly*, …) there should now be a
 **Scaletainer** entry. Pick it: a **Scaletainer** menu and toolbar appear.
 
-If it is missing, see [Troubleshooting](#6-troubleshooting).
+If it is missing, see [Troubleshooting](#7-troubleshooting).
 
 ---
 
@@ -171,6 +171,30 @@ stay in millimetres, whatever input unit you picked above.
   skin, so the container keeps its overall height and the interior stays the
   same size.
 * **Mounting ribs** — how many of those ribs to place.
+* **Cut magnet pockets for stacking** — turn on to make containers snap
+  together when stacked. The middle mounting rib gets a blind pocket in its
+  bottom member for a small magnet, and the roof gets a shallow seat in its
+  underside for a steel counterpart; the other ribs are left exactly as they
+  are. The parts are bought, so their sizes are **real millimetres** and are
+  never scaled:
+  * **Magnet diameter / thickness** — the disc magnet, default Ø3 × 1 mm.
+  * **Counterpart diameter / thickness** — the steel washer, default Ø7 × 0.5 mm
+    (DIN 125 A M3).
+  * **Magnet pocket clearance** — diametral play so the parts drop in, default
+    0.2 mm.
+  * **Magnet membrane** — plastic left between the magnet pocket and the
+    floor's outside face, default and minimum 0.5 mm.
+
+  The magnet pocket is a blind hole drilled from inside the container through
+  the middle rib's bottom member and into the floor plate, stopping one
+  membrane short of the outside. The counterpart gets a shallow seat in the
+  roof's underside, so the roof keeps its full thickness above the washer. If
+  the counterpart is thicker than that seat, the rest of its thickness is cut
+  out of the rib's top member, so the part still bottoms out in the seat and
+  never holds the rib off the roof. The floor and the roof therefore stay
+  closed and the container remains watertight, while the magnet and its
+  counterpart end up close enough together to hold. See
+  [section 6](#6-magnets-for-stacking) for the parts to buy.
 
 Both door ends are always built.
 
@@ -271,7 +295,88 @@ slow so thin parts do not warp off the bed.
 
 ---
 
-## 6. Troubleshooting
+## 6. Magnets for stacking
+
+Turning on **Cut magnet pockets for stacking** makes containers hold together
+when you stack them, which is what you want on a model railroad car: the upper
+container's magnet grabs the steel counterpart in the roof of the one below.
+
+Only the middle mounting rib is cut, so the other ribs keep their full
+strength and the container looks like the plain one from the outside. With an
+odd rib count that is a single rib; with an even count the two middle ribs are
+cut, so the pair stays symmetric.
+
+The magnet pocket is a **blind hole** drilled from inside the container through
+the rib's bottom member and into the floor plate, stopping one **magnet
+membrane** (0.5 mm by default) short of the outside face. The floor stays
+closed, so the container is still watertight and the magnet is completely
+hidden, yet the magnet sits close to the outside.
+
+The counterpart gets a **shallow seat in the roof's underside**, as deep as the
+washer is thick. The roof's top surface stays clean and flat, and the washer is
+dropped into the seat **before** the mounting rib is glued on.
+
+If you pick a thicker counterpart — an M4 washer is 0.8 mm, an M3 nut 2.4 mm —
+the seat is capped so the roof always keeps a membrane of plate above it, and
+the rest of the counterpart's thickness is **cut out of the rib's top member**
+instead. The part still bottoms out in the seat and never holds the rib off the
+roof. The relief is capped at the member thickness; a counterpart thicker than
+seat plus member would protrude into the container, and the preview says so.
+
+The magnet and the washer of the container above end up separated by the floor
+membrane plus the roof plate above the seat — 1.25 mm at 1:160 — which is close
+enough to hold a loaded car together. If the pull feels weak, raise the
+membrane only as far as needed; it can never go below 0.5 mm, because a thinner
+floor under the pocket would be too weak to handle.
+
+### Parts to buy (Switzerland)
+
+Both parts come from [supermagnete.ch](https://www.supermagnete.ch) (Webcraft AG,
+Uster). Swiss Post delivery is 1–2 days, shipping is CHF 6.90 and free from
+CHF 150; the minimum order is CHF 20.
+
+**Magnet** — nickel-plated NdFeB disc, N48:
+
+| Order code | Size | Pull at contact | Price |
+| --- | --- | --- | --- |
+| `S-02-01-N` | Ø2 × 1 mm | ~110 g | CHF 0.19 |
+| **`S-03-01-N`** | **Ø3 × 1 mm** | **~190 g** | **CHF 0.21** |
+| `S-03-02-N` | Ø3 × 2 mm | ~300 g | CHF 0.23 |
+| `S-04-02-N` | Ø4 × 2 mm | ~420 g | CHF 0.25 |
+
+**Counterpart** — plain or zinc-plated steel, **not** A2/A4 stainless (those are
+not magnetic):
+
+| Part | Size | Price |
+| --- | --- | --- |
+| **DIN 125 A M3 washer** | **3.2 / 7.0 / 0.5 mm** | **CHF 0.99 per 100** |
+| DIN 125 A M4 washer | 4.3 / 9.0 / 0.8 mm | CHF 1.08 per 100 |
+| M3 nut, DIN 934 | 5.5 mm AF, 2.4 mm high | CHF 1.70 per 100 |
+| `PAS-10` self-adhesive steel disc | Ø10 × 2 mm | CHF 0.27 each |
+
+The defaults in the panel are the **1:160 (N)** pair: `S-03-01-N` magnet and a
+DIN 125 A M3 washer. For larger scales pick a bigger row from the tables and
+type its real size into the four size fields — the pockets follow.
+
+### Gluing them in
+
+Use a slow-curing adhesive such as **UHU MAX REPAIR** or a two-part epoxy.
+**Never** use hot glue: NdFeB magnets lose their strength permanently above
+roughly 80 °C, and a hot-glue gun runs at 150–200 °C.
+
+1. Check the polarity before gluing — the magnet must attract the washer, and
+   all magnets in a container should face the same way so any container stacks
+   on any other.
+2. Put a drop of glue in the pocket, press the magnet in from below until it
+   bottoms out against the membrane, and let it cure.
+3. Put a drop of glue in the roof's underside seat and press the washer up into
+   it until it bottoms out. Do this **before** gluing the mounting rib on: once
+   the rib is in place its top member covers the seat and the washer can no
+   longer be reached from inside.
+
+---
+
+## 7. Troubleshooting
 
 * **No Scaletainer in the workbench list** — quit FreeCAD fully and start it
   again; the list is only built at startup. Then confirm the folder really is
@@ -291,7 +396,7 @@ slow so thin parts do not warp off the bed.
 
 ---
 
-## 7. Licence and links
+## 8. Licence and links
 
 * Licence: **GNU LGPL 2.1 or later** — see [LICENSE.md](LICENSE.md).
 * Source and issue tracker: [github.com/smellit/scaletainer](https://github.com/smellit/scaletainer)

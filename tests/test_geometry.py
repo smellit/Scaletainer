@@ -30,8 +30,8 @@ REFERENCE = {
 }
 
 
-def build(divider=160.0, *, include_far_door=False, **cfg):
-    params = ContainerParams.reference()
+def build(divider=160.0, *, include_far_door=False, params=None, **cfg):
+    params = params or ContainerParams.reference()
     geom = derive(params, BuildConfig(scale_divider=divider, **cfg))
     return geom, builder.build_components(geom, include_far_door=include_far_door)
 
@@ -250,6 +250,281 @@ class FarDoorTest(unittest.TestCase):
                 self.assertLessEqual(bb.XMax, geom.length + 1e-6)
                 door = next(c for c in parts if c.name == "FarDoor")
                 self.assertTrue(door.shape.isValid())
+
+
+class MagnetStackTest(unittest.TestCase):
+    """Magnet pockets are blind holes in the middle rib and the floor.
+
+    The counterpart only needs a shallow seat in the roof's underside, so the
+    rib's top member stays solid and the container stays closed.
+    """
+
+    @classmethod
+    def setUpClass(cls):
+        cls.geom, cls.components = build(include_magnets=True)
+        cls.by_name = {c.name: c for c in cls.components}
+        cls.plain_geom, cls.plain = build()
+        cls.plain_by_name = {c.name: c for c in cls.plain}
+
+    def test_pockets_are_off_by_default(self):
+        self.assertEqual(self.plain_geom.magnet_pocket, 0.0)
+        self.assertEqual(self.plain_geom.counterpart_pocket, 0.0)
+        for name, expected in REFERENCE.items():
+            with self.subTest(part=name):
+                self.assertAlmostEqual(self.plain_by_name[name].volume,
+                                       expected["volume"], places=3)
+
+    def test_pocket_sizes_come_from_the_bought_parts(self):
+        self.assertAlmostEqual(self.geom.magnet_pocket, 3.0 + 0.2, places=9)
+        self.assertAlmostEqual(self.geom.counterpart_pocket, 7.0 + 0.2, places=9)
+        self.assertAlmostEqual(self.geom.magnet_thickness, 1.0, places=9)
+        self.assertAlmostEqual(self.geom.counterpart_thickness, 0.5, places=9)
+
+    def test_only_the_middle_rib_gets_a_pocket(self):
+        # three ribs: the middle one only, the outer two stay untouched
+        self.assertEqual(len(self.geom.magnet_x), 1)
+        self.assertAlmostEqual(
+            self.geom.magnet_x[0],
+            self.geom.door_frame_width + self.geom.mount_x[1]
+            + self.geom.mount_frame_depth / 2.0, places=9)
+
+    def test_an_even_rib_count_gets_the_two_middle_ribs(self):
+        geom, _ = build(include_magnets=True,
+                        params=ContainerParams(mount_frame_count=4))
+        self.assertEqual(len(geom.magnet_x), 2)
+        for x, rib_x in zip(geom.magnet_x, geom.mount_x[1:3]):
+            with self.subTest(x=x):
+                self.assertAlmostEqual(
+                    x, geom.door_frame_width + rib_x
+                    + geom.mount_frame_depth / 2.0, places=9)
+
+    def test_a_single_rib_gets_the_pocket(self):
+        geom, _ = build(include_magnets=True,
+                        params=ContainerParams(mount_frame_count=1))
+        self.assertEqual(len(geom.magnet_x), 1)
+        self.assertAlmostEqual(
+            geom.magnet_x[0],
+            geom.door_frame_width + geom.mount_x[0]
+            + geom.mount_frame_depth / 2.0, places=9)
+
+    def test_pockets_are_centred_on_the_container(self):
+        self.assertAlmostEqual(self.geom.magnet_y,
+                               self.geom.side_envelope + self.geom.mount_span / 2.0,
+                               places=9)
+
+    def test_pockets_are_blind_holes_that_stop_at_a_membrane(self):
+        # the pocket runs through the rib member and into the floor plate,
+        # stopping magnet_membrane short of the outer face
+        self.assertAlmostEqual(self.geom.magnet_floor_top,
+                               self.geom.floor_depth + self.geom.mount_frame_wall,
+                               places=9)
+        self.assertAlmostEqual(self.geom.magnet_floor_depth,
+                               self.geom.mount_frame_wall + self.geom.floor_depth
+                               - self.geom.magnet_membrane, places=9)
+        self.assertAlmostEqual(self.geom.magnet_floor_top
+                               - self.geom.magnet_floor_depth,
+                               self.geom.magnet_membrane, places=9)
+
+    def test_counterpart_seat_is_a_shallow_recess_in_the_roof(self):
+        # the seat starts at the roof's inner face and is only as deep as the
+        # washer, so the rib's top member is never cut
+        self.assertAlmostEqual(self.geom.magnet_roof_bottom,
+                               self.geom.height - self.geom.roof_depth, places=9)
+        self.assertAlmostEqual(self.geom.magnet_roof_depth,
+                               self.geom.counterpart_thickness, places=9)
+        self.assertLess(self.geom.magnet_roof_depth, self.geom.roof_depth)
+        # the roof keeps its membrane above the seat
+        self.assertAlmostEqual(self.geom.roof_depth - self.geom.magnet_roof_depth,
+                               self.geom.roof_depth - self.geom.counterpart_thickness,
+                               places=9)
+        self.assertGreaterEqual(self.geom.roof_depth - self.geom.magnet_roof_depth,
+                                self.geom.magnet_membrane - 1e-9)
+        # a thin washer needs no relief in the rib at all
+        self.assertEqual(self.geom.magnet_rib_top_depth, 0.0)
+
+    def test_a_thick_counterpart_is_relieved_out_of_the_rib(self):
+        # a 2.4 mm counterpart does not fit in the 0.75 mm roof seat, so the
+        # rest of its thickness is cut out of the rib's top member
+        geom, parts = build(include_magnets=True, counterpart_thickness_mm=2.4)
+        self.assertAlmostEqual(geom.magnet_roof_depth,
+                               self.geom.roof_depth - self.geom.magnet_membrane,
+                               places=9)
+        self.assertAlmostEqual(self.geom.magnet_rib_top_depth, 0.0, places=9)
+        self.assertAlmostEqual(geom.magnet_rib_top_depth,
+                               geom.counterpart_thickness - geom.magnet_roof_depth,
+                               places=9)
+        self.assertAlmostEqual(geom.magnet_roof_depth
+                               + geom.magnet_rib_top_depth,
+                               geom.counterpart_thickness, places=9)
+        self.assertTrue(any("cut out of the mounting rib" in note
+                            for note in geom.notes))
+        for comp in parts:
+            self.assertTrue(comp.shape.isValid())
+
+    def test_the_rib_relief_is_capped_at_the_member_thickness(self):
+        # a 3 mm counterpart is thicker than the seat plus the rib member, so
+        # the relief stops at the member and a note says it will protrude
+        geom, _ = build(include_magnets=True, counterpart_thickness_mm=3.0)
+        self.assertAlmostEqual(geom.magnet_rib_top_depth,
+                               geom.mount_frame_wall, places=9)
+        self.assertTrue(any("protrude into the container" in note
+                            for note in geom.notes))
+
+    def test_the_rib_relief_is_cut_out_of_the_top_member(self):
+        import Part
+        from FreeCAD import Vector as Vec
+
+        geom, parts = build(include_magnets=True, counterpart_thickness_mm=2.4)
+        frame = next(c for c in parts if c.name == "MountFrame").shape
+        rr = geom.counterpart_pocket / 2.0 * 0.9
+        for x in geom.magnet_x:
+            with self.subTest(x=x):
+                # the relief is hollow, right under the roof's inner face
+                probe = Part.makeCylinder(
+                    rr, geom.magnet_rib_top_depth - 0.02,
+                    Vec(x, geom.magnet_y,
+                        geom.magnet_roof_bottom - geom.magnet_rib_top_depth + 0.01),
+                    Vec(0, 0, 1))
+                self.assertAlmostEqual(frame.common(probe).Volume, 0.0, places=6)
+                # the member below the relief is still solid
+                probe = Part.makeCylinder(
+                    rr, 0.04,
+                    Vec(x, geom.magnet_y,
+                        geom.magnet_roof_bottom - geom.magnet_rib_top_depth - 0.05),
+                    Vec(0, 0, 1))
+                self.assertGreater(frame.common(probe).Volume, 0.0)
+
+    def test_magnet_gap_is_the_floor_membrane_plus_the_roof_above_the_seat(self):
+        self.assertAlmostEqual(
+            self.geom.magnet_gap,
+            self.geom.magnet_membrane + self.geom.roof_depth
+            - self.geom.magnet_roof_depth, places=9)
+
+    def test_pockets_are_deep_enough_for_the_parts(self):
+        self.assertGreaterEqual(self.geom.magnet_floor_depth,
+                                self.geom.magnet_thickness)
+        self.assertGreaterEqual(self.geom.magnet_roof_depth,
+                                self.geom.counterpart_thickness)
+
+    def test_pockets_remove_material_from_floor_roof_and_ribs(self):
+        for name in ("Floor", "Roof", "MountFrame"):
+            with self.subTest(part=name):
+                self.assertLess(self.by_name[name].volume,
+                                self.plain_by_name[name].volume)
+
+    def test_rib_top_member_is_left_solid(self):
+        import Part
+        from FreeCAD import Vector as Vec
+
+        frame = self.by_name["MountFrame"].shape
+        rr = self.geom.counterpart_pocket / 2.0 * 0.9
+        for x in self.geom.magnet_x:
+            with self.subTest(x=x):
+                # the whole top member is untouched, from its underside up to
+                # the roof's inner face
+                probe = Part.makeCylinder(
+                    rr, self.geom.mount_frame_wall - 0.02,
+                    Vec(x, self.geom.magnet_y, self.geom.mount_height
+                        - self.geom.mount_frame_wall + 0.01),
+                    Vec(0, 0, 1))
+                self.assertGreater(frame.common(probe).Volume, 0.0)
+
+    def test_floor_and_roof_stay_closed(self):
+        import Part
+        from FreeCAD import Vector as Vec
+
+        floor = self.by_name["Floor"].shape
+        roof = self.by_name["Roof"].shape
+        frame = self.by_name["MountFrame"].shape
+        r = self.geom.magnet_pocket / 2.0 * 0.9
+        rr = self.geom.counterpart_pocket / 2.0 * 0.9
+        for x in self.geom.magnet_x:
+            with self.subTest(x=x):
+                # the rib's bottom member is hollowed out ...
+                probe = Part.makeCylinder(
+                    r, 0.05,
+                    Vec(x, self.geom.magnet_y, self.geom.magnet_floor_top - 0.06),
+                    Vec(0, 0, 1))
+                self.assertAlmostEqual(frame.common(probe).Volume, 0.0, places=6)
+                # ... and so is the floor plate, down to the membrane
+                probe = Part.makeCylinder(
+                    r, 0.05,
+                    Vec(x, self.geom.magnet_y, self.geom.magnet_membrane + 0.01),
+                    Vec(0, 0, 1))
+                self.assertAlmostEqual(floor.common(probe).Volume, 0.0, places=6)
+                # ... but the membrane itself is still solid
+                probe = Part.makeCylinder(
+                    r, 0.05,
+                    Vec(x, self.geom.magnet_y, self.geom.magnet_membrane / 2.0),
+                    Vec(0, 0, 1))
+                self.assertGreater(floor.common(probe).Volume, 0.0)
+                # the roof's underside is recessed for the washer ...
+                probe = Part.makeCylinder(
+                    rr, self.geom.magnet_roof_depth - 0.02,
+                    Vec(x, self.geom.magnet_y, self.geom.magnet_roof_bottom + 0.01),
+                    Vec(0, 0, 1))
+                self.assertAlmostEqual(roof.common(probe).Volume, 0.0, places=6)
+                # ... but the plate above the seat is still solid
+                probe = Part.makeCylinder(
+                    rr, 0.04,
+                    Vec(x, self.geom.magnet_y,
+                        self.geom.magnet_roof_bottom
+                        + self.geom.magnet_roof_depth + 0.01),
+                    Vec(0, 0, 1))
+                self.assertGreater(roof.common(probe).Volume, 0.0)
+
+    def test_overall_size_is_unchanged(self):
+        bb = builder.assembly_shape(self.components).BoundBox
+        plain_bb = builder.assembly_shape(self.plain).BoundBox
+        self.assertAlmostEqual(bb.ZLength, plain_bb.ZLength, places=6)
+        self.assertAlmostEqual(bb.ZLength, self.geom.height, places=6)
+        self.assertAlmostEqual(bb.XLength, plain_bb.XLength, places=6)
+        self.assertAlmostEqual(bb.YLength, plain_bb.YLength, places=6)
+
+    def test_magnets_survive_scaling(self):
+        for divider in (87.0, 160.0, 225.0):
+            geom, parts = build(divider, include_magnets=True)
+            with self.subTest(divider=divider):
+                self.assertAlmostEqual(geom.magnet_pocket, 3.2, places=9)
+                self.assertAlmostEqual(geom.counterpart_pocket, 7.2, places=9)
+                for comp in parts:
+                    self.assertTrue(comp.shape.isValid())
+                self.assertAlmostEqual(
+                    builder.assembly_shape(parts).BoundBox.ZLength, geom.height,
+                    places=6)
+
+    def test_magnets_work_with_a_flat_floor(self):
+        geom, parts = build(include_magnets=True, include_floor_corrugation=False)
+        floor = next(c for c in parts if c.name == "Floor")
+        self.assertAlmostEqual(geom.magnet_floor_depth,
+                               geom.mount_frame_wall + geom.floor_depth
+                               - geom.magnet_membrane, places=9)
+        self.assertTrue(floor.shape.isValid())
+        self.assertAlmostEqual(builder.assembly_shape(parts).BoundBox.ZLength,
+                               geom.height, places=6)
+
+    def test_membrane_never_goes_below_the_minimum(self):
+        from scaletainer.params import MAGNET_MEMBRANE_MIN_MM
+
+        self.assertGreaterEqual(MAGNET_MEMBRANE_MIN_MM, 0.5)
+        geom, _ = build(include_magnets=True, magnet_membrane_mm=0.1)
+        self.assertAlmostEqual(geom.magnet_membrane, MAGNET_MEMBRANE_MIN_MM,
+                               places=9)
+        self.assertTrue(any("magnet membrane raised" in note
+                            for note in geom.notes))
+        # the floor keeps at least the minimum under the pocket
+        self.assertAlmostEqual(geom.magnet_floor_top - geom.magnet_floor_depth,
+                               MAGNET_MEMBRANE_MIN_MM, places=9)
+
+    def test_a_thicker_membrane_is_honoured(self):
+        geom, _ = build(include_magnets=True, magnet_membrane_mm=1.2)
+        self.assertAlmostEqual(geom.magnet_membrane, 1.2, places=9)
+        self.assertFalse(any("magnet membrane raised" in note
+                             for note in geom.notes))
+
+    def test_wide_counterpart_is_reported(self):
+        geom, _ = build(divider=225.0, include_magnets=True)
+        self.assertTrue(any("counterpart seat" in note for note in geom.notes))
 
 
 class DocumentTest(unittest.TestCase):
